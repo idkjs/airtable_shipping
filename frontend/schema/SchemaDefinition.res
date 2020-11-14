@@ -1,4 +1,4 @@
-open AirtableRaw
+open Airtable
 open Belt
 open Util
 
@@ -93,34 +93,6 @@ let getTableNamesContext: airtableTableDef => tableNamesContext = tdef => {
   tableRecordTypeName: `${tdef.camelCaseTableName}Record`,
   recordBuilderFnName: `${tdef.camelCaseTableName}RecordBuilder`,
 }
-
-type fieldCodeGenContext = {
-  // field
-  allowedAirtableFieldTypes: array<string>,
-  // table
-  tableFieldAccessorName: string,
-  tableFieldType: string,
-  //record
-  innerRecordAccessorName: string,
-  recordFieldType: string,
-  parentRecordTypeName: string,
-}
-
-type tableRecordCodeGenContext = {
-  // table stuff
-  tableAccessorName: string,
-  tableTypeName: string,
-  sortParameterTypeName: string,
-  // record stuff
-  recordTypeName: string,
-  recordBuilderName: string,
-  fieldCodeGenContexts: array<fieldCodeGenContext>,
-}
-
-/*
-TABLE SCHEMA FIELDS
-So far these are just used for sorting
-*/
 type recordSortParam<'recordT> = airtableRawSortParam
 type tableSchemaView<'recordT> = {
   getRecords: array<recordSortParam<'recordT>> => array<'recordT>,
@@ -130,15 +102,15 @@ type tableSchemaField<'recordT> = {
   sortAsc: recordSortParam<'recordT>,
   sortDesc: recordSortParam<'recordT>,
 }
-let buildTableSchemaField: airtableRawField => tableSchemaField<'t> = raw => {
-  sortAsc: {
-    field: raw,
-    direction: `asc`,
-  },
-  sortDesc: {
-    field: raw,
-    direction: `desc`,
-  },
+type readOnlyScalarRecordField<'t> = {
+  read: unit => 't,
+  render: unit => React.element,
+}
+type readWriteScalarRecordField<'t> = {
+  read: unit => 't,
+  // don't need it yet
+  //writeAsync: 't => Js.Promise.t<unit>,
+  render: unit => React.element,
 }
 
 /*
@@ -150,16 +122,6 @@ let encloseRecordIdRead: (airtableRawRecord, unit) => string = raw => {
 }
 
 // SCALARS
-type readOnlyScalarRecordField<'t> = {
-  read: unit => 't,
-  render: unit => React.element,
-}
-type readWriteScalarRecordField<'t> = {
-  read: unit => 't,
-  // don't need it yet
-  //writeAsync: 't => Js.Promise.t<unit>,
-  render: unit => React.element,
-}
 
 // READING
 // reading from scalars once you have the record is a ()=>'t call

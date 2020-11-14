@@ -54,17 +54,17 @@ and skuOrdersTable: airtableTableDef = {
     },
     {
       resolutionMethod: ByName(`Tracking Number`),
-      camelCaseFieldName: `trackingNumber`,
+      camelCaseFieldName: `trackingRecord`,
       fieldValueType: RelFieldOption(skuOrdersTrackingTable, true),
     },
     {
       resolutionMethod: ByName(`SKU`),
-      camelCaseFieldName: `sku`,
+      camelCaseFieldName: `skuOrderSku`,
       fieldValueType: RelFieldOption(skusTable, true),
     },
     {
       resolutionMethod: ByName(`Onboard Destination`),
-      camelCaseFieldName: `boxDest`,
+      camelCaseFieldName: `skuOrderBoxDest`,
       fieldValueType: RelFieldOption(boxDestinationsTable, true),
     },
     {
@@ -99,7 +99,7 @@ and skuOrdersTable: airtableTableDef = {
     },
     {
       resolutionMethod: ByName(`gtg_dest_prefix`),
-      camelCaseFieldName: `destinationPrefix`,
+      camelCaseFieldName: `skuOrderDestinationPrefix`,
       fieldValueType: FormulaRollupRO(BareString),
     },
     {
@@ -232,17 +232,17 @@ and boxLinesTable: airtableTableDef = {
     },
     {
       resolutionMethod: ByName(`Box #`),
-      camelCaseFieldName: `box`,
+      camelCaseFieldName: `boxRecord`,
       fieldValueType: RelFieldOption(boxesTable, true),
     },
     {
       resolutionMethod: ByName(`SKU`),
-      camelCaseFieldName: `sku`,
+      camelCaseFieldName: `boxLineSku`,
       fieldValueType: RelFieldOption(skusTable, true),
     },
     {
       resolutionMethod: ByName(`SKU Order`),
-      camelCaseFieldName: `skuOrder`,
+      camelCaseFieldName: `boxLineSkuOrder`,
       fieldValueType: RelFieldOption(skuOrdersTable, true),
     },
     {resolutionMethod: ByName(`SKU Qty`), camelCaseFieldName: `qty`, fieldValueType: ScalarRW(Int)},

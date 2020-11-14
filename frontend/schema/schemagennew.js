@@ -7,7 +7,7 @@ global.window = 'beep'
 export default = Airtable.outputEntireSchemaAsString(SchemaDef.allTables)
 */
 
-var gschem = require('./GenericSchema2.bs.js')
+var gschem = require('./GenericSchema.bs.js')
 var schdef = require('./SchemaDefinitionUser.bs.js')
 
 var $$default = console.log(

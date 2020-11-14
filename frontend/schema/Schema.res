@@ -1,6 +1,6 @@
-open AirtableRaw
+open Airtable
 open SchemaDefinition
-open GenericSchema2
+open GenericSchema
 
 type rec skuOrderTrackingRecord = {
   id: string,
@@ -14,16 +14,16 @@ type rec skuOrderTrackingRecord = {
 and skuOrderRecord = {
   id: string,
   orderName: readOnlyScalarRecordField<string>,
-  trackingNumber: singleRelRecordField<skuOrderTrackingRecord>,
-  sku: singleRelRecordField<skuRecord>,
-  boxDest: singleRelRecordField<boxDestinationRecord>,
+  trackingRecord: singleRelRecordField<skuOrderTrackingRecord>,
+  skuOrderSku: singleRelRecordField<skuRecord>,
+  skuOrderBoxDest: singleRelRecordField<boxDestinationRecord>,
   quantityExpected: readWriteScalarRecordField<int>,
   quantityReceived: readWriteScalarRecordField<int>,
   quantityPacked: readOnlyScalarRecordField<int>,
   boxedCheckbox: readWriteScalarRecordField<bool>,
   externalProductName: readWriteScalarRecordField<string>,
   skuIsReceived: readWriteScalarRecordField<bool>,
-  destinationPrefix: readOnlyScalarRecordField<string>,
+  skuOrderDestinationPrefix: readOnlyScalarRecordField<string>,
   receivingNotes: readWriteScalarRecordField<string>,
 }
 and skuRecord = {
@@ -56,9 +56,9 @@ and boxRecord = {
 and boxLineRecord = {
   id: string,
   name: readOnlyScalarRecordField<string>,
-  box: singleRelRecordField<boxRecord>,
-  sku: singleRelRecordField<skuRecord>,
-  skuOrder: singleRelRecordField<skuOrderRecord>,
+  boxRecord: singleRelRecordField<boxRecord>,
+  boxLineSku: singleRelRecordField<skuRecord>,
+  boxLineSkuOrder: singleRelRecordField<skuOrderRecord>,
   qty: readWriteScalarRecordField<int>,
 }
 and skuOrderTrackingTable = {
@@ -76,16 +76,16 @@ and skuOrderTable = {
   getRecords: array<recordSortParam<skuOrderRecord>> => array<skuOrderRecord>,
   useRecords: array<recordSortParam<skuOrderRecord>> => array<skuOrderRecord>,
   orderNameField: tableSchemaField<skuOrderRecord>,
-  trackingNumberField: tableSchemaField<skuOrderRecord>,
-  skuField: tableSchemaField<skuOrderRecord>,
-  boxDestField: tableSchemaField<skuOrderRecord>,
+  trackingRecordField: tableSchemaField<skuOrderRecord>,
+  skuOrderSkuField: tableSchemaField<skuOrderRecord>,
+  skuOrderBoxDestField: tableSchemaField<skuOrderRecord>,
   quantityExpectedField: tableSchemaField<skuOrderRecord>,
   quantityReceivedField: tableSchemaField<skuOrderRecord>,
   quantityPackedField: tableSchemaField<skuOrderRecord>,
   boxedCheckboxField: tableSchemaField<skuOrderRecord>,
   externalProductNameField: tableSchemaField<skuOrderRecord>,
   skuIsReceivedField: tableSchemaField<skuOrderRecord>,
-  destinationPrefixField: tableSchemaField<skuOrderRecord>,
+  skuOrderDestinationPrefixField: tableSchemaField<skuOrderRecord>,
   receivingNotesField: tableSchemaField<skuOrderRecord>,
 }
 and skuTable = {
@@ -122,9 +122,9 @@ and boxLineTable = {
   getRecords: array<recordSortParam<boxLineRecord>> => array<boxLineRecord>,
   useRecords: array<recordSortParam<boxLineRecord>> => array<boxLineRecord>,
   nameField: tableSchemaField<boxLineRecord>,
-  boxField: tableSchemaField<boxLineRecord>,
-  skuField: tableSchemaField<boxLineRecord>,
-  skuOrderField: tableSchemaField<boxLineRecord>,
+  boxRecordField: tableSchemaField<boxLineRecord>,
+  boxLineSkuField: tableSchemaField<boxLineRecord>,
+  boxLineSkuOrderField: tableSchemaField<boxLineRecord>,
   qtyField: tableSchemaField<boxLineRecord>,
 }
 
@@ -160,16 +160,21 @@ and skuOrderRecordBuilder: (genericSchema, airtableRawRecord) => skuOrderRecord 
 ) => {
   id: rawRec.id,
   orderName: getField(gschem, "orderName").string.buildReadOnly(rawRec),
-  trackingNumber: buildSingleRelRecordField(
+  trackingRecord: buildSingleRelRecordField(
     gschem,
-    getRelField(gschem, "trackingNumber"),
+    getRelField(gschem, "trackingRecord"),
     skuOrderTrackingRecordBuilder,
     rawRec,
   ),
-  sku: buildSingleRelRecordField(gschem, getRelField(gschem, "sku"), skuRecordBuilder, rawRec),
-  boxDest: buildSingleRelRecordField(
+  skuOrderSku: buildSingleRelRecordField(
     gschem,
-    getRelField(gschem, "boxDest"),
+    getRelField(gschem, "skuOrderSku"),
+    skuRecordBuilder,
+    rawRec,
+  ),
+  skuOrderBoxDest: buildSingleRelRecordField(
+    gschem,
+    getRelField(gschem, "skuOrderBoxDest"),
     boxDestinationRecordBuilder,
     rawRec,
   ),
@@ -179,7 +184,9 @@ and skuOrderRecordBuilder: (genericSchema, airtableRawRecord) => skuOrderRecord 
   boxedCheckbox: getField(gschem, "boxedCheckbox").bool.buildReadWrite(rawRec),
   externalProductName: getField(gschem, "externalProductName").string.buildReadWrite(rawRec),
   skuIsReceived: getField(gschem, "skuIsReceived").bool.buildReadWrite(rawRec),
-  destinationPrefix: getField(gschem, "destinationPrefix").string.buildReadOnly(rawRec),
+  skuOrderDestinationPrefix: getField(gschem, "skuOrderDestinationPrefix").string.buildReadOnly(
+    rawRec,
+  ),
   receivingNotes: getField(gschem, "receivingNotes").string.buildReadWrite(rawRec),
 }
 and skuRecordBuilder: (genericSchema, airtableRawRecord) => skuRecord = (gschem, rawRec) => {
@@ -233,258 +240,274 @@ and boxLineRecordBuilder: (genericSchema, airtableRawRecord) => boxLineRecord = 
 ) => {
   id: rawRec.id,
   name: getField(gschem, "name").string.buildReadOnly(rawRec),
-  box: buildSingleRelRecordField(gschem, getRelField(gschem, "box"), boxRecordBuilder, rawRec),
-  sku: buildSingleRelRecordField(gschem, getRelField(gschem, "sku"), skuRecordBuilder, rawRec),
-  skuOrder: buildSingleRelRecordField(
+  boxRecord: buildSingleRelRecordField(
     gschem,
-    getRelField(gschem, "skuOrder"),
+    getRelField(gschem, "boxRecord"),
+    boxRecordBuilder,
+    rawRec,
+  ),
+  boxLineSku: buildSingleRelRecordField(
+    gschem,
+    getRelField(gschem, "boxLineSku"),
+    skuRecordBuilder,
+    rawRec,
+  ),
+  boxLineSkuOrder: buildSingleRelRecordField(
+    gschem,
+    getRelField(gschem, "boxLineSkuOrder"),
     skuOrderRecordBuilder,
     rawRec,
   ),
   qty: getField(gschem, "qty").int.buildReadWrite(rawRec),
 }
 
-let buildSchema: genericSchema => schema = gschem => {
-  skuOrderTracking: {
-    getRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "skuOrderTracking"),
-      skuOrderTrackingRecordBuilder,
-      false,
-    ),
-    useRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "skuOrderTracking"),
-      skuOrderTrackingRecordBuilder,
-      true,
-    ),
-    hasTrackingNumbersView: {
-      getRecords: buildGetOrUseRecords(
-        gschem,
-        getView(gschem, "hasTrackingNumbersView"),
-        skuOrderTrackingRecordBuilder,
-        false,
-      ),
-      useRecords: buildGetOrUseRecords(
-        gschem,
-        getView(gschem, "hasTrackingNumbersView"),
-        skuOrderTrackingRecordBuilder,
-        true,
-      ),
-    },
-    trackingNumberField: {
-      sortAsc: getField(gschem, "trackingNumber").sortAsc,
-      sortDesc: getField(gschem, "trackingNumber").sortDesc,
-    },
-    skuOrdersField: {
-      sortAsc: getField(gschem, "skuOrders").sortAsc,
-      sortDesc: getField(gschem, "skuOrders").sortDesc,
-    },
-    isReceivedField: {
-      sortAsc: getField(gschem, "isReceived").sortAsc,
-      sortDesc: getField(gschem, "isReceived").sortDesc,
-    },
-    receivedTimeField: {
-      sortAsc: getField(gschem, "receivedTime").sortAsc,
-      sortDesc: getField(gschem, "receivedTime").sortDesc,
-    },
-    jocoNotesField: {
-      sortAsc: getField(gschem, "jocoNotes").sortAsc,
-      sortDesc: getField(gschem, "jocoNotes").sortDesc,
-    },
-    warehouseNotesField: {
-      sortAsc: getField(gschem, "warehouseNotes").sortAsc,
-      sortDesc: getField(gschem, "warehouseNotes").sortDesc,
-    },
-  },
-  skuOrder: {
-    getRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "skuOrder"),
-      skuOrderRecordBuilder,
-      false,
-    ),
-    useRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "skuOrder"),
-      skuOrderRecordBuilder,
-      true,
-    ),
-    orderNameField: {
-      sortAsc: getField(gschem, "orderName").sortAsc,
-      sortDesc: getField(gschem, "orderName").sortDesc,
-    },
-    trackingNumberField: {
-      sortAsc: getField(gschem, "trackingNumber").sortAsc,
-      sortDesc: getField(gschem, "trackingNumber").sortDesc,
-    },
-    skuField: {
-      sortAsc: getField(gschem, "sku").sortAsc,
-      sortDesc: getField(gschem, "sku").sortDesc,
-    },
-    boxDestField: {
-      sortAsc: getField(gschem, "boxDest").sortAsc,
-      sortDesc: getField(gschem, "boxDest").sortDesc,
-    },
-    quantityExpectedField: {
-      sortAsc: getField(gschem, "quantityExpected").sortAsc,
-      sortDesc: getField(gschem, "quantityExpected").sortDesc,
-    },
-    quantityReceivedField: {
-      sortAsc: getField(gschem, "quantityReceived").sortAsc,
-      sortDesc: getField(gschem, "quantityReceived").sortDesc,
-    },
-    quantityPackedField: {
-      sortAsc: getField(gschem, "quantityPacked").sortAsc,
-      sortDesc: getField(gschem, "quantityPacked").sortDesc,
-    },
-    boxedCheckboxField: {
-      sortAsc: getField(gschem, "boxedCheckbox").sortAsc,
-      sortDesc: getField(gschem, "boxedCheckbox").sortDesc,
-    },
-    externalProductNameField: {
-      sortAsc: getField(gschem, "externalProductName").sortAsc,
-      sortDesc: getField(gschem, "externalProductName").sortDesc,
-    },
-    skuIsReceivedField: {
-      sortAsc: getField(gschem, "skuIsReceived").sortAsc,
-      sortDesc: getField(gschem, "skuIsReceived").sortDesc,
-    },
-    destinationPrefixField: {
-      sortAsc: getField(gschem, "destinationPrefix").sortAsc,
-      sortDesc: getField(gschem, "destinationPrefix").sortDesc,
-    },
-    receivingNotesField: {
-      sortAsc: getField(gschem, "receivingNotes").sortAsc,
-      sortDesc: getField(gschem, "receivingNotes").sortDesc,
-    },
-  },
-  sku: {
-    getRecords: buildGetOrUseRecords(gschem, getTable(gschem, "sku"), skuRecordBuilder, false),
-    useRecords: buildGetOrUseRecords(gschem, getTable(gschem, "sku"), skuRecordBuilder, true),
-    skuNameField: {
-      sortAsc: getField(gschem, "skuName").sortAsc,
-      sortDesc: getField(gschem, "skuName").sortDesc,
-    },
-    serialNumberField: {
-      sortAsc: getField(gschem, "serialNumber").sortAsc,
-      sortDesc: getField(gschem, "serialNumber").sortDesc,
-    },
-    isSerialRequiredField: {
-      sortAsc: getField(gschem, "isSerialRequired").sortAsc,
-      sortDesc: getField(gschem, "isSerialRequired").sortDesc,
-    },
-    lifetimeOrderQtyField: {
-      sortAsc: getField(gschem, "lifetimeOrderQty").sortAsc,
-      sortDesc: getField(gschem, "lifetimeOrderQty").sortDesc,
-    },
-  },
-  boxDestination: {
-    getRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "boxDestination"),
-      boxDestinationRecordBuilder,
-      false,
-    ),
-    useRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "boxDestination"),
-      boxDestinationRecordBuilder,
-      true,
-    ),
-    destNameField: {
-      sortAsc: getField(gschem, "destName").sortAsc,
-      sortDesc: getField(gschem, "destName").sortDesc,
-    },
-    boxesField: {
-      sortAsc: getField(gschem, "boxes").sortAsc,
-      sortDesc: getField(gschem, "boxes").sortDesc,
-    },
-    currentMaximalBoxNumberField: {
-      sortAsc: getField(gschem, "currentMaximalBoxNumber").sortAsc,
-      sortDesc: getField(gschem, "currentMaximalBoxNumber").sortDesc,
-    },
-    destinationPrefixField: {
-      sortAsc: getField(gschem, "destinationPrefix").sortAsc,
-      sortDesc: getField(gschem, "destinationPrefix").sortDesc,
-    },
-    boxOffsetField: {
-      sortAsc: getField(gschem, "boxOffset").sortAsc,
-      sortDesc: getField(gschem, "boxOffset").sortDesc,
-    },
-    isSerialBoxField: {
-      sortAsc: getField(gschem, "isSerialBox").sortAsc,
-      sortDesc: getField(gschem, "isSerialBox").sortDesc,
-    },
-  },
-  box: {
-    getRecords: buildGetOrUseRecords(gschem, getTable(gschem, "box"), boxRecordBuilder, false),
-    useRecords: buildGetOrUseRecords(gschem, getTable(gschem, "box"), boxRecordBuilder, true),
-    boxNumberField: {
-      sortAsc: getField(gschem, "boxNumber").sortAsc,
-      sortDesc: getField(gschem, "boxNumber").sortDesc,
-    },
-    boxLinesField: {
-      sortAsc: getField(gschem, "boxLines").sortAsc,
-      sortDesc: getField(gschem, "boxLines").sortDesc,
-    },
-    boxDestField: {
-      sortAsc: getField(gschem, "boxDest").sortAsc,
-      sortDesc: getField(gschem, "boxDest").sortDesc,
-    },
-    boxNumberOnlyField: {
-      sortAsc: getField(gschem, "boxNumberOnly").sortAsc,
-      sortDesc: getField(gschem, "boxNumberOnly").sortDesc,
-    },
-    isMaxBoxField: {
-      sortAsc: getField(gschem, "isMaxBox").sortAsc,
-      sortDesc: getField(gschem, "isMaxBox").sortDesc,
-    },
-    isToggledForPackingField: {
-      sortAsc: getField(gschem, "isToggledForPacking").sortAsc,
-      sortDesc: getField(gschem, "isToggledForPacking").sortDesc,
-    },
-    isPenultimateBoxField: {
-      sortAsc: getField(gschem, "isPenultimateBox").sortAsc,
-      sortDesc: getField(gschem, "isPenultimateBox").sortDesc,
-    },
-    isEmptyField: {
-      sortAsc: getField(gschem, "isEmpty").sortAsc,
-      sortDesc: getField(gschem, "isEmpty").sortDesc,
-    },
-  },
-  boxLine: {
-    getRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "boxLine"),
-      boxLineRecordBuilder,
-      false,
-    ),
-    useRecords: buildGetOrUseRecords(
-      gschem,
-      getTable(gschem, "boxLine"),
-      boxLineRecordBuilder,
-      true,
-    ),
-    nameField: {
-      sortAsc: getField(gschem, "name").sortAsc,
-      sortDesc: getField(gschem, "name").sortDesc,
-    },
-    boxField: {
-      sortAsc: getField(gschem, "box").sortAsc,
-      sortDesc: getField(gschem, "box").sortDesc,
-    },
-    skuField: {
-      sortAsc: getField(gschem, "sku").sortAsc,
-      sortDesc: getField(gschem, "sku").sortDesc,
-    },
-    skuOrderField: {
-      sortAsc: getField(gschem, "skuOrder").sortAsc,
-      sortDesc: getField(gschem, "skuOrder").sortDesc,
-    },
-    qtyField: {
-      sortAsc: getField(gschem, "qty").sortAsc,
-      sortDesc: getField(gschem, "qty").sortDesc,
-    },
-  },
+let buildSchema: array<airtableTableDef> => schema = tdefs => {
+  let base = useBase()
+  switch dereferenceGenericSchema(base, tdefs) {
+  | Err(errstr) => Js.Exn.raiseError(errstr)
+  | Ok(gschem) => {
+      skuOrderTracking: {
+        getRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "skuOrderTracking"),
+          skuOrderTrackingRecordBuilder,
+          false,
+        ),
+        useRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "skuOrderTracking"),
+          skuOrderTrackingRecordBuilder,
+          true,
+        ),
+        hasTrackingNumbersView: {
+          getRecords: buildGetOrUseRecords(
+            gschem,
+            getView(gschem, "hasTrackingNumbersView"),
+            skuOrderTrackingRecordBuilder,
+            false,
+          ),
+          useRecords: buildGetOrUseRecords(
+            gschem,
+            getView(gschem, "hasTrackingNumbersView"),
+            skuOrderTrackingRecordBuilder,
+            true,
+          ),
+        },
+        trackingNumberField: {
+          sortAsc: getField(gschem, "trackingNumber").sortAsc,
+          sortDesc: getField(gschem, "trackingNumber").sortDesc,
+        },
+        skuOrdersField: {
+          sortAsc: getField(gschem, "skuOrders").sortAsc,
+          sortDesc: getField(gschem, "skuOrders").sortDesc,
+        },
+        isReceivedField: {
+          sortAsc: getField(gschem, "isReceived").sortAsc,
+          sortDesc: getField(gschem, "isReceived").sortDesc,
+        },
+        receivedTimeField: {
+          sortAsc: getField(gschem, "receivedTime").sortAsc,
+          sortDesc: getField(gschem, "receivedTime").sortDesc,
+        },
+        jocoNotesField: {
+          sortAsc: getField(gschem, "jocoNotes").sortAsc,
+          sortDesc: getField(gschem, "jocoNotes").sortDesc,
+        },
+        warehouseNotesField: {
+          sortAsc: getField(gschem, "warehouseNotes").sortAsc,
+          sortDesc: getField(gschem, "warehouseNotes").sortDesc,
+        },
+      },
+      skuOrder: {
+        getRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "skuOrder"),
+          skuOrderRecordBuilder,
+          false,
+        ),
+        useRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "skuOrder"),
+          skuOrderRecordBuilder,
+          true,
+        ),
+        orderNameField: {
+          sortAsc: getField(gschem, "orderName").sortAsc,
+          sortDesc: getField(gschem, "orderName").sortDesc,
+        },
+        trackingRecordField: {
+          sortAsc: getField(gschem, "trackingRecord").sortAsc,
+          sortDesc: getField(gschem, "trackingRecord").sortDesc,
+        },
+        skuOrderSkuField: {
+          sortAsc: getField(gschem, "skuOrderSku").sortAsc,
+          sortDesc: getField(gschem, "skuOrderSku").sortDesc,
+        },
+        skuOrderBoxDestField: {
+          sortAsc: getField(gschem, "skuOrderBoxDest").sortAsc,
+          sortDesc: getField(gschem, "skuOrderBoxDest").sortDesc,
+        },
+        quantityExpectedField: {
+          sortAsc: getField(gschem, "quantityExpected").sortAsc,
+          sortDesc: getField(gschem, "quantityExpected").sortDesc,
+        },
+        quantityReceivedField: {
+          sortAsc: getField(gschem, "quantityReceived").sortAsc,
+          sortDesc: getField(gschem, "quantityReceived").sortDesc,
+        },
+        quantityPackedField: {
+          sortAsc: getField(gschem, "quantityPacked").sortAsc,
+          sortDesc: getField(gschem, "quantityPacked").sortDesc,
+        },
+        boxedCheckboxField: {
+          sortAsc: getField(gschem, "boxedCheckbox").sortAsc,
+          sortDesc: getField(gschem, "boxedCheckbox").sortDesc,
+        },
+        externalProductNameField: {
+          sortAsc: getField(gschem, "externalProductName").sortAsc,
+          sortDesc: getField(gschem, "externalProductName").sortDesc,
+        },
+        skuIsReceivedField: {
+          sortAsc: getField(gschem, "skuIsReceived").sortAsc,
+          sortDesc: getField(gschem, "skuIsReceived").sortDesc,
+        },
+        skuOrderDestinationPrefixField: {
+          sortAsc: getField(gschem, "skuOrderDestinationPrefix").sortAsc,
+          sortDesc: getField(gschem, "skuOrderDestinationPrefix").sortDesc,
+        },
+        receivingNotesField: {
+          sortAsc: getField(gschem, "receivingNotes").sortAsc,
+          sortDesc: getField(gschem, "receivingNotes").sortDesc,
+        },
+      },
+      sku: {
+        getRecords: buildGetOrUseRecords(gschem, getTable(gschem, "sku"), skuRecordBuilder, false),
+        useRecords: buildGetOrUseRecords(gschem, getTable(gschem, "sku"), skuRecordBuilder, true),
+        skuNameField: {
+          sortAsc: getField(gschem, "skuName").sortAsc,
+          sortDesc: getField(gschem, "skuName").sortDesc,
+        },
+        serialNumberField: {
+          sortAsc: getField(gschem, "serialNumber").sortAsc,
+          sortDesc: getField(gschem, "serialNumber").sortDesc,
+        },
+        isSerialRequiredField: {
+          sortAsc: getField(gschem, "isSerialRequired").sortAsc,
+          sortDesc: getField(gschem, "isSerialRequired").sortDesc,
+        },
+        lifetimeOrderQtyField: {
+          sortAsc: getField(gschem, "lifetimeOrderQty").sortAsc,
+          sortDesc: getField(gschem, "lifetimeOrderQty").sortDesc,
+        },
+      },
+      boxDestination: {
+        getRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "boxDestination"),
+          boxDestinationRecordBuilder,
+          false,
+        ),
+        useRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "boxDestination"),
+          boxDestinationRecordBuilder,
+          true,
+        ),
+        destNameField: {
+          sortAsc: getField(gschem, "destName").sortAsc,
+          sortDesc: getField(gschem, "destName").sortDesc,
+        },
+        boxesField: {
+          sortAsc: getField(gschem, "boxes").sortAsc,
+          sortDesc: getField(gschem, "boxes").sortDesc,
+        },
+        currentMaximalBoxNumberField: {
+          sortAsc: getField(gschem, "currentMaximalBoxNumber").sortAsc,
+          sortDesc: getField(gschem, "currentMaximalBoxNumber").sortDesc,
+        },
+        destinationPrefixField: {
+          sortAsc: getField(gschem, "destinationPrefix").sortAsc,
+          sortDesc: getField(gschem, "destinationPrefix").sortDesc,
+        },
+        boxOffsetField: {
+          sortAsc: getField(gschem, "boxOffset").sortAsc,
+          sortDesc: getField(gschem, "boxOffset").sortDesc,
+        },
+        isSerialBoxField: {
+          sortAsc: getField(gschem, "isSerialBox").sortAsc,
+          sortDesc: getField(gschem, "isSerialBox").sortDesc,
+        },
+      },
+      box: {
+        getRecords: buildGetOrUseRecords(gschem, getTable(gschem, "box"), boxRecordBuilder, false),
+        useRecords: buildGetOrUseRecords(gschem, getTable(gschem, "box"), boxRecordBuilder, true),
+        boxNumberField: {
+          sortAsc: getField(gschem, "boxNumber").sortAsc,
+          sortDesc: getField(gschem, "boxNumber").sortDesc,
+        },
+        boxLinesField: {
+          sortAsc: getField(gschem, "boxLines").sortAsc,
+          sortDesc: getField(gschem, "boxLines").sortDesc,
+        },
+        boxDestField: {
+          sortAsc: getField(gschem, "boxDest").sortAsc,
+          sortDesc: getField(gschem, "boxDest").sortDesc,
+        },
+        boxNumberOnlyField: {
+          sortAsc: getField(gschem, "boxNumberOnly").sortAsc,
+          sortDesc: getField(gschem, "boxNumberOnly").sortDesc,
+        },
+        isMaxBoxField: {
+          sortAsc: getField(gschem, "isMaxBox").sortAsc,
+          sortDesc: getField(gschem, "isMaxBox").sortDesc,
+        },
+        isToggledForPackingField: {
+          sortAsc: getField(gschem, "isToggledForPacking").sortAsc,
+          sortDesc: getField(gschem, "isToggledForPacking").sortDesc,
+        },
+        isPenultimateBoxField: {
+          sortAsc: getField(gschem, "isPenultimateBox").sortAsc,
+          sortDesc: getField(gschem, "isPenultimateBox").sortDesc,
+        },
+        isEmptyField: {
+          sortAsc: getField(gschem, "isEmpty").sortAsc,
+          sortDesc: getField(gschem, "isEmpty").sortDesc,
+        },
+      },
+      boxLine: {
+        getRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "boxLine"),
+          boxLineRecordBuilder,
+          false,
+        ),
+        useRecords: buildGetOrUseRecords(
+          gschem,
+          getTable(gschem, "boxLine"),
+          boxLineRecordBuilder,
+          true,
+        ),
+        nameField: {
+          sortAsc: getField(gschem, "name").sortAsc,
+          sortDesc: getField(gschem, "name").sortDesc,
+        },
+        boxRecordField: {
+          sortAsc: getField(gschem, "boxRecord").sortAsc,
+          sortDesc: getField(gschem, "boxRecord").sortDesc,
+        },
+        boxLineSkuField: {
+          sortAsc: getField(gschem, "boxLineSku").sortAsc,
+          sortDesc: getField(gschem, "boxLineSku").sortDesc,
+        },
+        boxLineSkuOrderField: {
+          sortAsc: getField(gschem, "boxLineSkuOrder").sortAsc,
+          sortDesc: getField(gschem, "boxLineSkuOrder").sortDesc,
+        },
+        qtyField: {
+          sortAsc: getField(gschem, "qty").sortAsc,
+          sortDesc: getField(gschem, "qty").sortDesc,
+        },
+      },
+    }
+  }
 }
