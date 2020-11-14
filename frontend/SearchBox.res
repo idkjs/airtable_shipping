@@ -1,6 +1,6 @@
 @react.component
 let make = (~state: Reducer.state, ~dispatch) => {
-  open Airtable
+  open AirtableUI
   <div>
     <div> <Heading> {React.string("Tracking Number Search")} </Heading> </div>
     <div style={ReactDOM.Style.make(~marginBottom="20px", ())}>

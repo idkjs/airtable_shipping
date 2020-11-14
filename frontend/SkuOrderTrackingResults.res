@@ -2,7 +2,7 @@
 let make = (~state: Reducer.state, ~dispatch, ~schema: Schema.schema) => {
   open Belt
   open Util
-  open Airtable
+  open AirtableUI
   open Schema
 
   let trackingRecords: array<skuOrderTrackingRecord> =

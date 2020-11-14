@@ -7,13 +7,11 @@ global.window = 'beep'
 export default = Airtable.outputEntireSchemaAsString(SchemaDef.allTables)
 */
 
-var Airtable$JocoReceiving = require('./Airtable.bs.js')
-var SchemaDef$JocoReceiving = require('./SchemaDef.bs.js')
+var gschem = require('./GenericSchema2.bs.js')
+var schdef = require('./SchemaDefinitionUser.bs.js')
 
 var $$default = console.log(
-  Airtable$JocoReceiving.outputEntireSchemaAsString(
-    SchemaDef$JocoReceiving.allTables
-  )
+  gschem.codeGenSchema(gschem.getSchemaMergeVars(schdef.allTables))
 )
 
 exports.$$default = $$default

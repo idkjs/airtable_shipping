@@ -1,7 +1,7 @@
 @react.component
 let make = () => {
   //let schema = buildSchemaHook()
-  let schema = Schema.buildSchema(SchemaDef.allTables)
+  let schema = Schema.buildSchema(SchemaDefinitionUser.allTables)
   open Reducer
   let (state, dispatch) = React.useReducer(reducer, initialState)
 

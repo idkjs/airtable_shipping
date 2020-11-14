@@ -16,6 +16,7 @@
         "lint": "eslint frontend",
         "re:build": "bsb -make-world -clean-world",
         "re:watch": "bsb -make-world -clean-world -w",
-        "schemagen": "node ./frontend/schemagen.js > ./frontend/Schema2.res; mv ./frontend/Schema.res ./frontend/Schema.res.prev; mv ./frontend/Schema2.res ./frontend/Schema.res;"
+        "schemagen": "node ./frontend/schema/schemagen.js > ./frontend/schema/SchemaNew.res; mv ./frontend/schema/Schema.res ./frontend/schema/Schema.res.prev; mv ./frontend/schema/SchemaNew.res ./frontend/schema/Schema.res;",
+        "schemagen2": "node ./frontend/schema/schemagennew.js > ./frontend/schema/SchemaNew.res; mv ./frontend/schema/Schema.res ./frontend/schema/Schema.res.prev; mv ./frontend/schema/SchemaNew.res ./frontend/schema/Schema.res;"
     }
 }

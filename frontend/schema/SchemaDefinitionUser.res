@@ -1,4 +1,4 @@
-open Airtable
+open SchemaDefinition
 
 let rec skuOrdersTrackingTable: airtableTableDef = {
   resolutionMethod: ByName(`SKU Orders Tracking`),

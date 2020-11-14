@@ -1,147 +1,7 @@
 open Belt
 open Util
-/*
-JS INTEGRATION TYPES AND EXTERNALS
-JS INTEGRATION TYPES AND EXTERNALS
-JS INTEGRATION TYPES AND EXTERNALS
-*/
-type airtableRawField = {
-  name: string,
-  @bs.as("type")
-  _type: string,
-}
-type airtableRawView
-type airtableRawTable = {primaryField: airtableRawField}
-type airtableRawBase
-type airtableRawRecord = {id: string}
-type airtableRawRecordQueryResult = {records: array<airtableRawRecord>}
-type airtableMoment
-type airtableRawSortParam = {
-  field: airtableRawField,
-  direction: string,
-}
-
-/**
-UI INTEGRATION
-UI INTEGRATION
-UI INTEGRATION
-*/
-module Input = {
-  @bs.module("@airtable/blocks/ui") @react.component
-  external make: (
-    ~value: string,
-    ~onChange: ReactEvent.Form.t => 'a,
-    ~style: ReactDOM.Style.t,
-  ) => React.element = "Input"
-}
-
-module CellRenderer = {
-  @bs.module("@airtable/blocks/ui") @react.component
-  external make: (~field: airtableRawField, ~record: airtableRawRecord) => React.element =
-    "CellRenderer"
-}
-
-module Dialog = {
-  @bs.module("@airtable/blocks/ui") @react.component
-  external make: (~onClose: unit => 'a) => React.element = "Dialog"
-}
-
-module Heading = {
-  @bs.module("@airtable/blocks/ui") @react.component
-  external make: (~children: React.element) => React.element = "Heading"
-}
-
-/**
-RECORD STUFF
-RECORD STUFF
-RECORD STUFF
-*/
-
-// their functions
-@bs.module("@airtable/blocks/ui")
-external useBase: unit => airtableRawBase = "useBase"
-@bs.module("@airtable/blocks/ui")
-external useRecords: airtableRawRecordQueryResult => array<airtableRawRecord> = "useRecords"
-@bs.send @bs.return(nullable)
-external getTableByName: (airtableRawBase, string) => option<airtableRawTable> =
-  "getTableByNameIfExists"
-@bs.send @bs.return(nullable)
-external getViewByName: (airtableRawTable, string) => option<airtableRawView> =
-  "getViewByNameIfExists"
-@bs.send @bs.return(nullable)
-external getFieldByName: (airtableRawTable, string) => option<airtableRawField> =
-  "getFieldByNameIfExists"
-
-// my functions
-@bs.module("./schema/js_helpers")
-external getString: (airtableRawRecord, airtableRawField) => string = "prepBareString"
-@bs.module("./schema/js_helpers")
-external getStringOption: (airtableRawRecord, airtableRawField) => option<string> =
-  "prepStringOption"
-@bs.module("./schema/js_helpers")
-external getInt: (airtableRawRecord, airtableRawField) => int = "prepInt"
-@bs.module("./schema/js_helpers")
-external getBool: (airtableRawRecord, airtableRawField) => bool = "prepBool"
-@bs.module("./schema/js_helpers")
-external getIntAsBool: (airtableRawRecord, airtableRawField) => bool = "prepIntAsBool"
-@bs.module("./schema/js_helpers")
-external getMomentOption: (airtableRawRecord, airtableRawField) => option<airtableMoment> =
-  "prepMomentOption"
-@bs.module("./schema/js_helpers")
-external getLinkedRecordQueryResult: (
-  airtableRawRecord,
-  airtableRawField,
-  array<airtableRawField>,
-  array<airtableRawSortParam>,
-) => airtableRawRecordQueryResult = "prepRelFieldQueryResult"
-@bs.module("./schema/js_helpers")
-external getTableRecordsQueryResult: (
-  airtableRawTable,
-  array<airtableRawField>,
-  array<airtableRawSortParam>,
-) => airtableRawRecordQueryResult = "selectRecordsFromTableOrView"
-@bs.module("./schema/js_helpers")
-external getViewRecordsQueryResult: (
-  airtableRawView,
-  array<airtableRawField>,
-  array<airtableRawSortParam>,
-) => airtableRawRecordQueryResult = "selectRecordsFromTableOrView"
-
-/*
-USER SCHEMA DEFINTION TYPES
-USER SCHEMA DEFINTION TYPES
-USER SCHEMA DEFINTION TYPES
-*/
-type rec airtableObjectResolutionMethod = ByName(string)
-and airtableTableDef = {
-  resolutionMethod: airtableObjectResolutionMethod,
-  camelCaseTableName: string,
-  tableFields: array<airtableFieldDef>,
-  tableViews: array<airtableViewDef>,
-}
-and airtableViewDef = {
-  resolutionMethod: airtableObjectResolutionMethod,
-  camelCaseViewName: string,
-}
-and airtableScalarValueDef =
-  | BareString
-  | StringOption
-  | Int
-  | Bool
-  | IntAsBool
-  | MomentOption
-and airtableFieldValueType =
-  | ScalarRW(airtableScalarValueDef)
-  | FormulaRollupRO(airtableScalarValueDef)
-  | RelFieldOption(airtableTableDef, bool)
-and airtableFieldResolutionMethod =
-  | ByName(string)
-  | PrimaryField
-and airtableFieldDef = {
-  resolutionMethod: airtableFieldResolutionMethod,
-  camelCaseFieldName: string,
-  fieldValueType: airtableFieldValueType,
-}
+open AirtableRaw
+open SchemaDefinition
 
 /*
 CODE GEN TYPES
@@ -233,8 +93,8 @@ let rec parseField: (string, string, airtableFieldDef) => fieldCodeGenContext = 
     `${innerTableAccessorName}: buildTableSchemaField(${gsGetRawFieldFnCall})`
   let scalarFieldDecl: string => string = scalarReadFnName => {
     `{
-      read: encloseAndTypeScalarRead(${globals.recordBuilderRawRecName}, ${gsGetRawFieldFnCall}, ${scalarReadFnName}),
-      render: encloseCellRenderer(${globals.recordBuilderRawRecName}, ${gsGetRawFieldFnCall}),
+      read: encloseAndTypeScalarRead(${gsGetRawFieldFnCall}, ${scalarReadFnName}, ${globals.recordBuilderRawRecName}),
+      render: encloseCellRenderer( ${gsGetRawFieldFnCall},${globals.recordBuilderRawRecName}),
      }`
   }
   let relFieldDecl: (string, string, bool) => string = (
@@ -398,6 +258,9 @@ let schemaTypeDef: array<airtableTableDef> => string = tables => {
 
   `
 open Airtable
+open AirtableRaw
+open SchemaDefinition
+
 
 // warning 30 complains about matching fields in mut recursive types
 // and we dgaf in this case... it's p much of intentional
@@ -509,125 +372,6 @@ CORE DATATYPES INSIDE SCHEMAS
 and helpful functions for implementing schemas
 */
 
-/*
-TABLE SCHEMA FIELDS
-So far these are just used for sorting
-*/
-type recordSortParam<'recordT> = airtableRawSortParam
-type tableSchemaView<'recordT> = {
-  getRecords: array<recordSortParam<'recordT>> => array<'recordT>,
-  useRecords: array<recordSortParam<'recordT>> => array<'recordT>,
-}
-type tableSchemaField<'recordT> = {
-  sortAsc: recordSortParam<'recordT>,
-  sortDesc: recordSortParam<'recordT>,
-}
-let buildTableSchemaField: airtableRawField => tableSchemaField<'t> = raw => {
-  sortAsc: {
-    field: raw,
-    direction: `asc`,
-  },
-  sortDesc: {
-    field: raw,
-    direction: `desc`,
-  },
-}
-
-/*
-RECORD FIELDS
-
-*/
-let encloseRecordIdRead: (airtableRawRecord, unit) => string = raw => {
-  () => raw.id
-}
-
-// SCALARS
-type readOnlyScalarRecordField<'t> = {
-  read: unit => 't,
-  render: unit => React.element,
-}
-type readWriteScalarRecordField<'t> = {
-  read: unit => 't,
-  // don't need it yet
-  //writeAsync: 't => Js.Promise.t<unit>,
-  render: unit => React.element,
-}
-
-// READING
-// reading from scalars once you have the record is a ()=>'t call
-let encloseAndTypeScalarRead: (
-  airtableRawRecord,
-  airtableRawField,
-  (airtableRawRecord, airtableRawField) => 'scalarish,
-  unit,
-) => 'scalarish = (rawRec, rawField, fn, _) => {
-  fn(rawRec, rawField)
-}
-// cell renderer is even easier as it's completely polymorphic
-let encloseCellRenderer: (airtableRawRecord, airtableRawField, unit) => React.element = (
-  record,
-  field,
-  _,
-) => {
-  <CellRenderer field record />
-}
-
-// RELATIONSHIP FIELDS
-type singleRelRecordField<'relT> = {
-  getRecord: unit => option<'relT>,
-  useRecord: unit => option<'relT>,
-}
-type multipleRelRecordField<'relT> = {
-  getRecords: array<recordSortParam<'relT>> => array<'relT>,
-  useRecords: array<recordSortParam<'relT>> => array<'relT>,
-}
-
-let getOrUseQueryResult: (
-  airtableRawRecordQueryResult,
-  bool,
-  airtableRawRecord => 'recordT,
-) => array<'recordT> = (qres, shouldUse, wrap) => {
-  (shouldUse ? useRecords(qres) : qres.records)->Array.map(wrap)
-}
-
-let getMultiRecordAsArray: (
-  airtableRawRecord,
-  airtableRawField,
-  array<airtableRawField>,
-  bool,
-  airtableRawRecord => 'recordT,
-  array<airtableRawSortParam>,
-) => array<'recordT> = (rawR, rawF, allFs, shouldUse, wrap, sortPs) => {
-  let query = getLinkedRecordQueryResult(rawR, rawF, allFs, sortPs)
-  query->getOrUseQueryResult(shouldUse, wrap)
-}
-
-// add a unit to the call sig so this curries with the args provided to it
-// into the call needed for getRecord and useRecord
-let getSingleRecordAsOption: (
-  airtableRawRecord,
-  airtableRawField,
-  array<airtableRawField>,
-  bool,
-  airtableRawRecord => 'recordT,
-  unit,
-) => option<'recordT> = (rawR, rawF, allFs, shouldUse, wrap, _) => {
-  let recos = getMultiRecordAsArray(rawR, rawF, allFs, shouldUse, wrap, [])
-  switch recos {
-  | [] => None
-  | [one] => Some(one)
-  | _ => {
-      Js.Console.error(`${rawF.name} field declared as single rel, but multiple rels found`)
-      // this access returns an option, which is fine
-      recos[0]
-    }
-  }
-}
-
-/*
-GENERIC TABLE TYPE
-*/
-
 let getTable: (
   airtableRawBase,
   airtableObjectResolutionMethod,
@@ -661,10 +405,7 @@ let swallowTuple: (('a, result<'err, 'succ>)) => result<'err, ('a, 'succ)> = ((l
   | Ok(succ) => Ok(l, succ)
   }
 }
-type genericField = {
-  field: airtableRawField,
-  ctx: fieldCodeGenContext,
-}
+type genericField = {field: airtableRawField, ctx: fieldCodeGenContext}
 
 type genericTable = {
   table: airtableRawTable,

@@ -1,6 +1,10 @@
+# i use this for a previous version of  a generated schema
+*.prev
+
 #airtable
 /.airtableblocksrc.json
 /build
+
 
 # from https://github.com/reasonml/reason-react/blob/master/.gitignore
 .DS_Store
