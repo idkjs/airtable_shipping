@@ -94,10 +94,6 @@ let getTableNamesContext: airtableTableDef => tableNamesContext = tdef => {
   recordBuilderFnName: `${tdef.camelCaseTableName}RecordBuilder`,
 }
 type recordSortParam<'recordT> = airtableRawSortParam
-type tableSchemaView<'recordT> = {
-  getRecords: array<recordSortParam<'recordT>> => array<'recordT>,
-  useRecords: array<recordSortParam<'recordT>> => array<'recordT>,
-}
 type tableSchemaField<'recordT> = {
   sortAsc: recordSortParam<'recordT>,
   sortDesc: recordSortParam<'recordT>,

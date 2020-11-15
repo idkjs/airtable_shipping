@@ -4,18 +4,9 @@ open SchemaDefinition
 open Util
 
 type rec genericSchema = {
-  tables: Map.String.t<genericQueryable<airtableRawTable>>,
-  views: Map.String.t<genericQueryable<airtableRawView>>,
   fields: Map.String.t<scalarishField>,
-  relFields: Map.String.t<relField>,
-  allFields: Map.String.t<array<airtableRawField>>,
-}
-and relField = {
-  getRelQueryResult: (
-    genericSchema,
-    airtableRawRecord,
-    array<airtableRawSortParam>,
-  ) => airtableRawRecordQueryResult,
+  tableish: Map.String.t<veryGenericQueryable<airtableRawRecord>>,
+  rels: Map.String.t<airtableRawRecord => veryGenericQueryable<airtableRawRecord>>,
 }
 and scalarishRecordFieldBuilder<'scalarish> = {
   buildReadOnly: airtableRawRecord => readOnlyScalarRecordField<'scalarish>,
@@ -32,9 +23,18 @@ and scalarishField = {
   sortAsc: airtableRawSortParam,
   sortDesc: airtableRawSortParam,
 }
-and genericQueryable<'atObj> = {
-  rawAirtableObject: 'atObj,
-  getQueryResult: (genericSchema, array<airtableRawSortParam>) => airtableRawRecordQueryResult,
+and veryGenericQueryable<'qType> = {
+  getRecord: unit => option<'qType>,
+  useRecord: unit => option<'qType>,
+  getRecords: array<airtableRawSortParam> => array<'qType>,
+  useRecords: array<airtableRawSortParam> => array<'qType>,
+}
+
+let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (orig, map) => {
+  getRecord: p => orig.getRecord(p)->Option.map(map),
+  useRecord: p => orig.useRecord(p)->Option.map(map),
+  getRecords: p => orig.getRecords(p)->Array.map(map),
+  useRecords: p => orig.useRecords(p)->Array.map(map),
 }
 
 let buildScalarishRecordFieldBuilder = (rawField, prepFn) => {
@@ -90,106 +90,118 @@ let dereferenceGenericSchema: (
     )
   }
 
-  let getAllFieldsFromMyOwnSelfLater: (genericSchema, string) => array<airtableRawField> = (
-    gschem,
-    key,
-  ) => gschem.allFields->Map.String.getExn(key)
-
   // string keys on the outside of the results for the object
-  let (allKeys, tablePairs, viewPairs, fieldPairs, allFieldsPairs, relFieldsPairs): (
+  let (allKeys, fieldPairs, allFieldsPairs, vgqs, relVgqs): (
     array<string>,
-    array<(string, objResult<genericQueryable<airtableRawTable>>)>,
-    array<(string, objResult<genericQueryable<airtableRawView>>)>,
     array<(string, objResult<scalarishField>)>,
     array<(string, objResult<array<airtableRawField>>)>,
-    array<(string, objResult<relField>)>,
+    array<(
+      string,
+      objResult<(string => array<airtableRawField>) => veryGenericQueryable<airtableRawRecord>>,
+    )>,
+    array<(
+      string,
+      objResult<
+        (
+          string => array<airtableRawField>,
+          airtableRawRecord,
+        ) => veryGenericQueryable<airtableRawRecord>,
+      >,
+    )>,
   ) =
-    tdefs->Array.reduce(([], [], [], [], [], []), ((
+    tdefs->Array.reduce(([], [], [], [], []), ((
       strAccum,
-      tabAccum,
-      viewAccum,
       fieldAccum,
       allFieldsAccum,
-      relFieldsAccum,
+      vgqAccum,
+      relVgqAccum,
     ), tdef) => {
+      let buildVGQ: (
+        array<airtableRawSortParam> => airtableRawRecordQueryResult
+      ) => veryGenericQueryable<airtableRawRecord> = getQ => {
+        let useQueryResult: (airtableRawRecordQueryResult, bool) => array<airtableRawRecord> = (
+          q,
+          use,
+        ) => use ? useRecords(q) : q.records
+        {
+          getRecords: params => params->getQ->useQueryResult(false),
+          useRecords: params => params->getQ->useQueryResult(true),
+          getRecord: () => []->getQ->useQueryResult(false)->Array.get(0),
+          useRecord: () => []->getQ->useQueryResult(true)->Array.get(0),
+        }
+      }
+
       let allStrings: array<(string, _)> => array<string> = arr => arr->Array.map(first)
-      let tablePair = (
+      let tableVGQPair = (
         tdef.camelCaseTableName,
-        getTable(base, tdef.resolutionMethod)->resultAndThen(table => Ok({
-          rawAirtableObject: table,
-          getQueryResult: (gschem, sorts) =>
-            getTableRecordsQueryResult(
-              table,
-              gschem->getAllFieldsFromMyOwnSelfLater(tdef.camelCaseTableName),
-              sorts,
-            ),
-        })),
+        getTable(base, tdef.resolutionMethod)->resultAndThen(table => Ok(
+          getAllFields =>
+            buildVGQ(getTableRecordsQueryResult(table, getAllFields(tdef.camelCaseTableName))),
+        )),
       )
-      let tableViewPairs = tdef.tableViews->Array.map(vdef => {
-        (
+
+      let viewVGQPairs =
+        tdef.tableViews->Array.map(vdef => (
           vdef.camelCaseViewName,
           getView(base, tdef.resolutionMethod, vdef.resolutionMethod)->resultAndThen(view => {
-            Ok({
-              rawAirtableObject: view,
-              getQueryResult: (gschem, sorts) =>
-                getViewRecordsQueryResult(
-                  view,
-                  gschem->getAllFieldsFromMyOwnSelfLater(tdef.camelCaseTableName),
-                  sorts,
-                ),
-            })
+            Ok(
+              getAllFields => {
+                buildVGQ(getViewRecordsQueryResult(view, getAllFields(tdef.camelCaseTableName)))
+              },
+            )
           }),
-        )
-      })
-      let (tableFieldPairs, relFieldsOptPairs) = tdef.tableFields->Array.map(fdef => {
-        let field = getField(base, tdef.resolutionMethod, fdef.resolutionMethod)
+        ))
+
+      let relVGQPair =
+        tdef.tableFields->Array.map(fdef => (
+          fdef.camelCaseFieldName,
+          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->resultAndThen(field =>
+            switch fdef.fieldValueType {
+            | RelFieldOption(relTableDef, _) =>
+              Ok(
+                (getAllFields, record) =>
+                  buildVGQ(
+                    getLinkedRecordQueryResult(
+                      record,
+                      field,
+                      getAllFields(relTableDef.camelCaseTableName),
+                    ),
+                  ),
+              )
+
+            | _ => Err("throw this away")
+            }
+          ),
+        ))
+      let tableFieldPairs = tdef.tableFields->Array.map(fdef => {
         let allowedAirtableFieldTypes = fdef.fieldValueType->allowedAirtableFieldTypes
         let allowListStr = allowedAirtableFieldTypes |> joinWith(",")
         (
-          (
-            // scalarish field stuff
-            fdef.camelCaseFieldName,
-            field->resultAndThen(field => {
-              if allowedAirtableFieldTypes->Array.some(atTypeName => {
-                atTypeName->trimLower == field._type->trimLower
-              }) {
-                Ok({
-                  rawField: field,
-                  string: buildScalarishRecordFieldBuilder(field, getString),
-                  stringOpt: buildScalarishRecordFieldBuilder(field, getStringOption),
-                  int: buildScalarishRecordFieldBuilder(field, getInt),
-                  bool: buildScalarishRecordFieldBuilder(field, getBool),
-                  intBool: buildScalarishRecordFieldBuilder(field, getIntAsBool),
-                  momentOption: buildScalarishRecordFieldBuilder(field, getMomentOption),
-                  sortAsc: {field: field, direction: `asc`},
-                  sortDesc: {field: field, direction: `desc`},
-                })
-              } else {
-                Err(
-                  `field ${field.name} has type of ${field._type} but only types [${allowListStr}] are allowed`,
-                )
-              }
-            }),
-          ),
-          // relfield opt pair
-          (fdef.camelCaseFieldName, field->resultAndThen(field => {
-              switch fdef.fieldValueType {
-              | RelFieldOption(relTableDef, _) =>
-                Ok({
-                  getRelQueryResult: (gschem, record, sorts) => {
-                    let allFields = getAllFieldsFromMyOwnSelfLater(
-                      gschem,
-                      relTableDef.camelCaseTableName,
-                    )
-
-                    getLinkedRecordQueryResult(record, field, allFields, sorts)
-                  },
-                })
-              | _ => Err("throw this away")
-              }
-            })),
+          // scalarish field stuff
+          fdef.camelCaseFieldName,
+          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->resultAndThen(field => {
+            if allowedAirtableFieldTypes->Array.some(atTypeName => {
+              atTypeName->trimLower == field._type->trimLower
+            }) {
+              Ok({
+                rawField: field,
+                string: buildScalarishRecordFieldBuilder(field, getString),
+                stringOpt: buildScalarishRecordFieldBuilder(field, getStringOption),
+                int: buildScalarishRecordFieldBuilder(field, getInt),
+                bool: buildScalarishRecordFieldBuilder(field, getBool),
+                intBool: buildScalarishRecordFieldBuilder(field, getIntAsBool),
+                momentOption: buildScalarishRecordFieldBuilder(field, getMomentOption),
+                sortAsc: {field: field, direction: `asc`},
+                sortDesc: {field: field, direction: `desc`},
+              })
+            } else {
+              Err(
+                `field ${field.name} has type of ${field._type} but only types [${allowListStr}] are allowed`,
+              )
+            }
+          }),
         )
-      })->Array.unzip
+      })
       let allFieldsPair = {
         // throw away the errors
         let (_, allFields) = tableFieldPairs->Array.map(second) |> partitionErrors
@@ -203,14 +215,13 @@ let dereferenceGenericSchema: (
         Array.concatMany([
           strAccum,
           [tdef.camelCaseTableName],
-          tableViewPairs->allStrings,
+          viewVGQPairs->allStrings,
           tableFieldPairs->allStrings,
         ]),
-        tabAccum->Array.concat([tablePair]),
-        viewAccum->Array.concat(tableViewPairs),
         fieldAccum->Array.concat(tableFieldPairs),
         allFieldsAccum->Array.concat([allFieldsPair]),
-        relFieldsAccum->Array.concat(relFieldsOptPairs),
+        Array.concatMany([vgqAccum, [tableVGQPair], viewVGQPairs]),
+        relVgqAccum->Array.concat(relVGQPair),
       )
     })
 
@@ -234,67 +245,48 @@ let dereferenceGenericSchema: (
     })
   }
 
-  let (tableErrors, tableMap) = buildDict(tablePairs)
-  let (viewErrors, viewMap) = buildDict(viewPairs)
   let (fieldErrors, fieldMap) = buildDict(fieldPairs)
   let (_, allFieldMap) = buildDict(allFieldsPairs)
-  let (_, relFieldMap) = buildDict(relFieldsPairs)
-  let allErrors = Array.concatMany([repeatedKeyErrors, tableErrors, viewErrors, fieldErrors])
+  let (vqgErrors, tableishMap) = buildDict(vgqs)
+  let (_, relMap) = buildDict(relVgqs)
+  let mapGetAllFields: ((string => array<airtableRawField>) => _) => _ = thing =>
+    thing(allFieldMap->Map.String.getExn)
+
+  let allErrors = Array.concatMany([repeatedKeyErrors, fieldErrors, vqgErrors])
 
   switch allErrors {
   | [] =>
     Ok({
-      tables: tableMap,
-      views: viewMap,
       fields: fieldMap,
-      allFields: allFieldMap,
-      relFields: relFieldMap,
+      tableish: tableishMap->Map.String.map(mapGetAllFields),
+      rels: relMap->Map.String.map(mapGetAllFields),
     })
   | _ => Err(allErrors |> joinWith("\n"))
   }
 }
 
-let getTable: (genericSchema, string) => genericQueryable<airtableRawTable> = (objs, key) =>
-  objs.tables->Map.String.getExn(key)
-let getView: (genericSchema, string) => genericQueryable<airtableRawView> = (objs, key) =>
-  objs.views->Map.String.getExn(key)
 let getField: (genericSchema, string) => scalarishField = (objs, key) =>
   objs.fields->Map.String.getExn(key)
-let getAllFields: (genericSchema, string) => array<airtableRawField> = (objs, key) =>
-  objs.allFields->Map.String.getExn(key)
-let getRelField: (genericSchema, string) => relField = (objs, key) =>
-  objs.relFields->Map.String.getExn(key)
 
-let buildSingleRelRecordField: (
+let getQueryableTableOrView: (
   genericSchema,
-  relField,
+  string,
+  (genericSchema, airtableRawRecord) => 'recordT,
+) => veryGenericQueryable<'recordT> = (gschem, keystr, wrap) => {
+  let tbish = gschem.tableish->Map.String.getExn(keystr)
+  // parameterize with a way to get all fields
+  tbish->mapVGQ(wrap(gschem))
+}
+
+let getQueryableRelField: (
+  genericSchema,
+  string,
   (genericSchema, airtableRawRecord) => 'recordT,
   airtableRawRecord,
-) => singleRelRecordField<'relT> = (gschem, relF, wrapRec, rawRec) => {
-  getRecord: _ =>
-    relF.getRelQueryResult(gschem, rawRec, [])->getOrUseQueryResultSingle(false, wrapRec(gschem)),
-  useRecord: _ =>
-    relF.getRelQueryResult(gschem, rawRec, [])->getOrUseQueryResultSingle(true, wrapRec(gschem)),
-}
-let buildMultipleRelRecordField: (
-  genericSchema,
-  relField,
-  (genericSchema, airtableRawRecord) => 'recordT,
-  airtableRawRecord,
-) => multipleRelRecordField<'relT> = (gschem, relF, wrapRec, rawRec) => {
-  getRecords: _ =>
-    relF.getRelQueryResult(gschem, rawRec, [])->getOrUseQueryResult(false, wrapRec(gschem)),
-  useRecords: _ =>
-    relF.getRelQueryResult(gschem, rawRec, [])->getOrUseQueryResult(true, wrapRec(gschem)),
-}
-let buildGetOrUseRecords: (
-  genericSchema,
-  genericQueryable<_>,
-  (genericSchema, airtableRawRecord) => 'recordT,
-  bool,
-  array<recordSortParam<'recordT>>,
-) => array<'recordT> = (gschem, gqbl, wrapRec, shouldUse, sorts) => {
-  gqbl.getQueryResult(gschem, sorts)->getOrUseQueryResult(shouldUse, wrapRec(gschem))
+) => veryGenericQueryable<'recordT> = (gschem, keystr, wrap, rawRec) => {
+  let rels = gschem.rels->Map.String.getExn(keystr)
+  // parameterize with a way to get all fields
+  rawRec->rels->mapVGQ(wrap(gschem))
 }
 
 type rec schemaMergeVars = {
@@ -312,8 +304,7 @@ and tableRecordMergeVars = {
   recordVarNamesToBuilderInvocation: array<(string, string)>,
   // table type
   tableSchemaAccessorName: string,
-  getRecordsInvocation: string,
-  useRecordsInvocation: string,
+  declareGetAndUse: string,
   tableTypeName: string,
   typeOfTableRecordAccess: string,
   tableVarNamesToBuilderInvocation: array<(string, string)>,
@@ -330,6 +321,23 @@ and fieldMergeVars = {
   tableFieldBuilderInvocation: string,
 }
 
+let relFieldDeclBuilder: (string, string, bool, bool) => (string, string) = (
+  targetRecordTypeName,
+  invokeQueryable,
+  isSingle,
+  inBrackets,
+) => {
+  let s_ = isSingle ? "" : "s"
+  let (o_, c_) = inBrackets ? ("{", "}") : ("", "")
+  (
+    isSingle
+      ? `singleRelRecordField<${targetRecordTypeName}>`
+      : `multipleRelRecordField<${targetRecordTypeName}>`,
+    `${o_}
+      getRecord${s_}: ${invokeQueryable}.getRecord${s_},
+      useRecord${s_}: ${invokeQueryable}.useRecord${s_}${c_}`,
+  )
+}
 let getFieldMergeVars = (
   ~fieldDef: airtableFieldDef,
   ~genericSchemaVarName: string,
@@ -337,8 +345,8 @@ let getFieldMergeVars = (
   ~parentRecordTypeName: string,
 ) => {
   let getFieldInvocation = `getField(${genericSchemaVarName},"${fieldDef.camelCaseFieldName}")`
-  let getRelFieldInvocation =
-    `getRelField(${genericSchemaVarName},"${fieldDef.camelCaseFieldName}")`
+  let getRelFieldInvocation: string => string = wrapperName =>
+    `getQueryableRelField(${genericSchemaVarName},"${fieldDef.camelCaseFieldName}", ${wrapperName}, ${rawRecordVarName})`
   let (
     recordFieldAccessorStructureType,
     recordFieldAccessorBuilderInvocation,
@@ -363,13 +371,16 @@ let getFieldMergeVars = (
     }
   | RelFieldOption(relTableDef, isSingle) => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(relTableDef)
-      let (recordFieldTypeName, buildFieldFnName) = isSingle
-        ? (`singleRelRecordField`, `buildSingleRelRecordField`)
-        : (`multipleRelRecordField`, `buildMultipleRelRecordField`)
-      (
-        `${recordFieldTypeName}<${tableRecordTypeName}>`,
-        `${buildFieldFnName}(${genericSchemaVarName},${getRelFieldInvocation},${recordBuilderFnName},${rawRecordVarName})`,
-      )
+      let (recordFieldTypeName, fieldBuilder) = {
+        let builderStr = s_ => {
+          let rfd = getRelFieldInvocation(recordBuilderFnName)
+          `{getRecord${s_}: ${rfd}.getRecord${s_},useRecord${s_}: ${rfd}.useRecord${s_}}`
+        }
+        isSingle
+          ? (`singleRelRecordField`, builderStr(""))
+          : (`multipleRelRecordField`, builderStr("s"))
+      }
+      (`${recordFieldTypeName}<${tableRecordTypeName}>`, fieldBuilder)
     }
   }
   {
@@ -398,10 +409,8 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
     tableRecordMergeVars: tableDefs->Array.map(tdef => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(tdef)
       let getTableInvocation = `getTable(${genericSchemaVarName},"${tdef.camelCaseTableName}")`
-      let buildGetOrUseInvocation = (getQueryableInvocation, shouldUse) => {
-        let tOrF = shouldUse ? `true` : `false`
-        `buildGetOrUseRecords(${genericSchemaVarName}, ${getQueryableInvocation}, ${recordBuilderFnName}, ${tOrF})`
-      }
+      let getQueryableTableOrViewInvocation: string => string = tableishNameStr =>
+        `getQueryableTableOrView(${genericSchemaVarName},"${tableishNameStr}",${recordBuilderFnName})`
       let (
         recordVarNamesToTypes,
         recordVarNamesToBuilderInvocation,
@@ -433,18 +442,14 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
         array<(string, string)>,
       ) =
         tdef.tableViews->Array.map(vdef => {
-          let getViewInvocation = `getView(${genericSchemaVarName},"${vdef.camelCaseViewName}")`
-          (
-            (vdef.camelCaseViewName, `tableSchemaView<${tableRecordTypeName}>`),
-            (
-              vdef.camelCaseViewName,
-              `{getRecords: ${buildGetOrUseInvocation(
-                getViewInvocation,
-                false,
-              )},
-            useRecords: ${buildGetOrUseInvocation(getViewInvocation, true)},}`,
-            ),
+          let (typeStr, declStr) = relFieldDeclBuilder(
+            tableRecordTypeName,
+            getQueryableTableOrViewInvocation(vdef.camelCaseViewName),
+            false,
+            true,
           )
+          let getViewInvocation = `getView(${genericSchemaVarName},"${vdef.camelCaseViewName}")`
+          ((vdef.camelCaseViewName, typeStr), (vdef.camelCaseViewName, declStr))
         })->Array.unzip
       {
         //rec
@@ -454,8 +459,15 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
         recordVarNamesToBuilderInvocation: recordVarNamesToBuilderInvocation,
         // tab
         tableSchemaAccessorName: tdef.camelCaseTableName,
-        getRecordsInvocation: buildGetOrUseInvocation(getTableInvocation, false),
-        useRecordsInvocation: buildGetOrUseInvocation(getTableInvocation, true),
+        declareGetAndUse: {
+          let (_, dgau) = relFieldDeclBuilder(
+            tableRecordTypeName,
+            getQueryableTableOrViewInvocation(tdef.camelCaseTableName),
+            false,
+            false,
+          )
+          dgau
+        },
         tableTypeName: `${tdef.camelCaseTableName}Table`,
         typeOfTableRecordAccess: `array<${tableRecordTypeName}>`,
         tableVarNamesToBuilderInvocation: tableVarNamesToBuilderInvocation,
@@ -527,12 +539,10 @@ let codeGenSchema: schemaMergeVars => string = ({
     tableSchemaAccessorName,
     tableVarNamesToBuilderInvocation,
     tableViewNamesToBuilderInvocations,
-    getRecordsInvocation,
-    useRecordsInvocation,
+    declareGetAndUse,
   }) => {
     `${tableSchemaAccessorName}: {
-        getRecords : ${getRecordsInvocation},
-        useRecords : ${useRecordsInvocation},
+        ${declareGetAndUse},
         ${tableViewNamesToBuilderInvocations->fieldDecl}
         ${tableVarNamesToBuilderInvocation->fieldDecl}
     },`
