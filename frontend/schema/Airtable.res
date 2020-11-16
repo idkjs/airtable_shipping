@@ -1,5 +1,3 @@
-open Belt
-
 type airtableRawField = {
   name: string,
   @bs.as("type")
@@ -72,19 +70,3 @@ external getViewRecordsQueryResult: (
   array<airtableRawField>,
   array<airtableRawSortParam>,
 ) => airtableRawRecordQueryResult = "selectRecordsFromTableOrView"
-
-let getOrUseQueryResult: (
-  airtableRawRecordQueryResult,
-  bool,
-  airtableRawRecord => 'recordT,
-) => array<'recordT> = (qres, shouldUse, wrap) => {
-  (shouldUse ? useRecords(qres) : qres.records)->Array.map(wrap)
-}
-
-let getOrUseQueryResultSingle: (
-  airtableRawRecordQueryResult,
-  bool,
-  airtableRawRecord => 'recordT,
-) => option<'recordT> = (qres, shouldUse, wrap) => {
-  getOrUseQueryResult(qres, shouldUse, wrap)->Array.get(0)
-}

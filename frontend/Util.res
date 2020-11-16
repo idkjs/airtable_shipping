@@ -14,17 +14,11 @@ let second: (('a, 'b)) => 'b = ((_, r)) => r
 
 let identity: 'a => 'a = v => v
 
-type result<'err, 'succ> = Ok('succ) | Err('err)
-
-let optionToError: (option<'succ>, 'err) => result<'err, 'succ> = (opt, err) => {
-  opt->Option.mapWithDefault(Err(err), rawSucc => Ok(rawSucc))
-}
-
-let partitionErrors: array<result<'err, 'succ>> => (array<'err>, array<'succ>) = arr => {
+let partitionErrors: array<Result.t<'succ, 'err>> => (array<'err>, array<'succ>) = arr => {
   Array.reduce(arr, ([], []), (accum, res) => {
     let (errs, succs) = accum
     switch res {
-    | Err(err) => (Array.concat(errs, [err]), succs)
+    | Error(err) => (Array.concat(errs, [err]), succs)
     | Ok(succ) => (errs, Array.concat(succs, [succ]))
     }
   })
@@ -34,19 +28,8 @@ let trimLower: string => string = str => {
   str->Js.String.toLowerCase->Js.String.trim
 }
 
-let resultAndThen: (result<'err, 'a>, 'a => result<'err, 'b>) => result<'err, 'b> = (res, map) => {
-  switch res {
-  | Ok(a) => map(a)
-  | Err(err) => Err(err)
-  }
-}
-
-let isError: result<'err, 'succ> => bool = res => {
-  switch res {
-  | Ok(_) => false
-  | _ => true
-  }
-}
+let optionToError: (option<'succ>, 'err) => Result.t<'succ, 'err> = (opt, err) =>
+  opt->Option.mapWithDefault(Error(err), rawSucc => Ok(rawSucc))
 
 let unzipFour: array<(('a, 'b), ('c, 'd), ('e, 'f), ('g, 'h))> => (
   array<('a, 'b)>,

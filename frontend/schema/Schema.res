@@ -2,6 +2,12 @@ open Airtable
 open SchemaDefinition
 open GenericSchema
 
+// warnings that complain about matching fields in mut recursive types
+// and overlapping labels
+// and we dgaf in this case... it's p much of intentional
+@@warning("-30")
+@@warning("-45")
+
 type rec skuOrderTrackingRecord = {
   id: string,
   trackingNumber: readWriteScalarRecordField<string>,
@@ -284,7 +290,7 @@ and boxLineRecordBuilder: (genericSchema, airtableRawRecord) => boxLineRecord = 
 let buildSchema: array<airtableTableDef> => schema = tdefs => {
   let base = useBase()
   switch dereferenceGenericSchema(base, tdefs) {
-  | Err(errstr) => Js.Exn.raiseError(errstr)
+  | Error(errstr) => Js.Exn.raiseError(errstr)
   | Ok(gschem) => {
       skuOrderTracking: {
         getRecords: getQueryableTableOrView(

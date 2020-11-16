@@ -1,6 +1,7 @@
+// there are duplicated labels here and i intend to keep them
+@@warning("-30")
+
 open Airtable
-open Belt
-open Util
 
 type rec airtableObjectResolutionMethod = ByName(string)
 and airtableTableDef = {
@@ -109,34 +110,7 @@ type readWriteScalarRecordField<'t> = {
   render: unit => React.element,
 }
 
-/*
-RECORD FIELDS
-
-*/
-let encloseRecordIdRead: (airtableRawRecord, unit) => string = raw => {
-  () => raw.id
-}
-
 // SCALARS
-
-// READING
-// reading from scalars once you have the record is a ()=>'t call
-let encloseAndTypeScalarRead: (
-  airtableRawField,
-  (airtableRawRecord, airtableRawField) => 'scalarish,
-  airtableRawRecord,
-  unit,
-) => 'scalarish = (rawField, fn, rawRec, _) => {
-  fn(rawRec, rawField)
-}
-// cell renderer is even easier as it's completely polymorphic
-let encloseCellRenderer: (airtableRawField, airtableRawRecord, unit) => React.element = (
-  field,
-  record,
-  _,
-) => {
-  <CellRenderer field record />
-}
 
 // RELATIONSHIP FIELDS
 type singleRelRecordField<'relT> = {

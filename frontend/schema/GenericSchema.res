@@ -3,14 +3,25 @@ open Airtable
 open SchemaDefinition
 open Util
 
+/*
+These are the types necessary to implement a 
+"Generic Schema" that can do all the actions our 
+typed API can do. It's designed NOT to have all the 
+type guarantees, as it's used by the generated schema
+(also you can't store all the subtyped things neatly)
+
+Basically there are scalar things and queryable things. 
+In each case we wrap the record with all the possibly useful 
+functions and then link the correct instances of those
+to the matching, typed, field in the generated schema.
+*/
 type rec genericSchema = {
+  // read or readwrite to any kind of non relationship field
   fields: Map.String.t<scalarishField>,
+  // things that can just return query results
   tableish: Map.String.t<veryGenericQueryable<airtableRawRecord>>,
+  // things which need a record to return a query result
   rels: Map.String.t<airtableRawRecord => veryGenericQueryable<airtableRawRecord>>,
-}
-and scalarishRecordFieldBuilder<'scalarish> = {
-  buildReadOnly: airtableRawRecord => readOnlyScalarRecordField<'scalarish>,
-  buildReadWrite: airtableRawRecord => readWriteScalarRecordField<'scalarish>,
 }
 and scalarishField = {
   rawField: airtableRawField,
@@ -23,13 +34,22 @@ and scalarishField = {
   sortAsc: airtableRawSortParam,
   sortDesc: airtableRawSortParam,
 }
+and scalarishRecordFieldBuilder<'scalarish> = {
+  // utility type for scalarish
+  buildReadOnly: airtableRawRecord => readOnlyScalarRecordField<'scalarish>,
+  buildReadWrite: airtableRawRecord => readWriteScalarRecordField<'scalarish>,
+}
 and veryGenericQueryable<'qType> = {
+  // query single
   getRecord: unit => option<'qType>,
   useRecord: unit => option<'qType>,
+  // query multiple
   getRecords: array<airtableRawSortParam> => array<'qType>,
   useRecords: array<airtableRawSortParam> => array<'qType>,
 }
 
+// allows any VGQ object to be wrapped into
+// a fully typed record builder type
 let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (orig, map) => {
   getRecord: p => orig.getRecord(p)->Option.map(map),
   useRecord: p => orig.useRecord(p)->Option.map(map),
@@ -37,26 +57,37 @@ let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (
   useRecords: p => orig.useRecords(p)->Array.map(map),
 }
 
-let buildScalarishRecordFieldBuilder = (rawField, prepFn) => {
+// fulfiil the scalarishRecordFieldBuilder interface when
+// given a prep function
+let scalarishBuilder: (
+  airtableRawField,
+  (airtableRawRecord, airtableRawField) => 'scalarish,
+) => scalarishRecordFieldBuilder<'scalarish> = (rawField, prepFn) => {
   buildReadOnly: rawRec => {
-    read: encloseAndTypeScalarRead(rawField, prepFn, rawRec),
-    render: encloseCellRenderer(rawField, rawRec),
+    read: () => prepFn(rawRec, rawField),
+    render: () => <CellRenderer field=rawField record=rawRec />,
   },
   buildReadWrite: rawRec => {
-    read: encloseAndTypeScalarRead(rawField, prepFn, rawRec),
-    render: encloseCellRenderer(rawField, rawRec),
+    read: () => prepFn(rawRec, rawField),
+    render: () => <CellRenderer field=rawField record=rawRec />,
   },
 }
-type objResult<'at> = result<string, 'at>
+type objResult<'at> = Result.t<'at, string>
 
+/*
+Return all the errors we can from schema creation in 
+one go. This makes it faster to diagnose errors in the 
+application due to missing fields--they crash right away
+*/
 let dereferenceGenericSchema: (
   airtableRawBase,
   array<airtableTableDef>,
-) => result<string, genericSchema> = (base, tdefs) => {
+) => Result.t<genericSchema, string> = (base, tdefs) => {
+  // result based access for raw objects
   let getTable: (
     airtableRawBase,
     airtableObjectResolutionMethod,
-  ) => result<string, airtableRawTable> = (base, resmeth) => {
+  ) => Result.t<airtableRawTable, string> = (base, resmeth) => {
     switch resmeth {
     | ByName(name) =>
       getTableByName(base, name)->optionToError(`cannot dereference table by name ${name}`)
@@ -67,8 +98,8 @@ let dereferenceGenericSchema: (
     airtableRawBase,
     airtableObjectResolutionMethod,
     airtableObjectResolutionMethod,
-  ) => result<string, airtableRawView> = (base, tableres, viewres) => {
-    getTable(base, tableres)->resultAndThen(table =>
+  ) => Result.t<airtableRawView, string> = (base, tableres, viewres) => {
+    getTable(base, tableres)->Result.flatMap(table =>
       switch viewres {
       | ByName(name) =>
         getViewByName(table, name)->optionToError(`cannot dereference view by name ${name}`)
@@ -80,8 +111,8 @@ let dereferenceGenericSchema: (
     airtableRawBase,
     airtableObjectResolutionMethod,
     airtableFieldResolutionMethod,
-  ) => result<string, airtableRawField> = (base, tableres, fieldres) => {
-    getTable(base, tableres)->resultAndThen(table =>
+  ) => Result.t<airtableRawField, string> = (base, tableres, fieldres) => {
+    getTable(base, tableres)->Result.flatMap(table =>
       switch fieldres {
       | ByName(name) =>
         getFieldByName(table, name)->optionToError(`cannot dereference field by name ${name}`)
@@ -90,20 +121,49 @@ let dereferenceGenericSchema: (
     )
   }
 
-  // string keys on the outside of the results for the object
+  // everything from airtable comes back as a query result if you want it that way
+  // this takes a function that provides one and creates a generic queryable thing
+  let buildVGQ: (
+    array<airtableRawSortParam> => airtableRawRecordQueryResult
+  ) => veryGenericQueryable<airtableRawRecord> = getQ => {
+    let useQueryResult: (airtableRawRecordQueryResult, bool) => array<airtableRawRecord> = (
+      q,
+      use,
+    ) => use ? useRecords(q) : q.records
+    {
+      getRecords: params => params->getQ->useQueryResult(false),
+      useRecords: params => params->getQ->useQueryResult(true),
+      getRecord: () => []->getQ->useQueryResult(false)->Array.get(0),
+      useRecord: () => []->getQ->useQueryResult(true)->Array.get(0),
+    }
+  }
+
+  /** 
+  gather together all the results of recursion down the the schema tree
+
+  most results are keyed with strings to feed into dictionary generators
+ */
   let (allKeys, fieldPairs, allFieldsPairs, vgqs, relVgqs): (
+    // all the string keys (must be unique--check that later)
     array<string>,
+    // all scalarish fields
     array<(string, objResult<scalarishField>)>,
     array<(string, objResult<array<airtableRawField>>)>,
+    // these lengthier results need to be
+    // parameterized in order to actually return
+    // something meaningful
     array<(
       string,
+      // getfields
       objResult<(string => array<airtableRawField>) => veryGenericQueryable<airtableRawRecord>>,
     )>,
     array<(
       string,
       objResult<
         (
+          // getfields
           string => array<airtableRawField>,
+          // record for linked records
           airtableRawRecord,
         ) => veryGenericQueryable<airtableRawRecord>,
       >,
@@ -116,25 +176,10 @@ let dereferenceGenericSchema: (
       vgqAccum,
       relVgqAccum,
     ), tdef) => {
-      let buildVGQ: (
-        array<airtableRawSortParam> => airtableRawRecordQueryResult
-      ) => veryGenericQueryable<airtableRawRecord> = getQ => {
-        let useQueryResult: (airtableRawRecordQueryResult, bool) => array<airtableRawRecord> = (
-          q,
-          use,
-        ) => use ? useRecords(q) : q.records
-        {
-          getRecords: params => params->getQ->useQueryResult(false),
-          useRecords: params => params->getQ->useQueryResult(true),
-          getRecord: () => []->getQ->useQueryResult(false)->Array.get(0),
-          useRecord: () => []->getQ->useQueryResult(true)->Array.get(0),
-        }
-      }
-
       let allStrings: array<(string, _)> => array<string> = arr => arr->Array.map(first)
       let tableVGQPair = (
         tdef.camelCaseTableName,
-        getTable(base, tdef.resolutionMethod)->resultAndThen(table => Ok(
+        getTable(base, tdef.resolutionMethod)->Result.flatMap(table => Ok(
           getAllFields =>
             buildVGQ(getTableRecordsQueryResult(table, getAllFields(tdef.camelCaseTableName))),
         )),
@@ -143,7 +188,7 @@ let dereferenceGenericSchema: (
       let viewVGQPairs =
         tdef.tableViews->Array.map(vdef => (
           vdef.camelCaseViewName,
-          getView(base, tdef.resolutionMethod, vdef.resolutionMethod)->resultAndThen(view => {
+          getView(base, tdef.resolutionMethod, vdef.resolutionMethod)->Result.flatMap(view => {
             Ok(
               getAllFields => {
                 buildVGQ(getViewRecordsQueryResult(view, getAllFields(tdef.camelCaseTableName)))
@@ -155,7 +200,7 @@ let dereferenceGenericSchema: (
       let relVGQPair =
         tdef.tableFields->Array.map(fdef => (
           fdef.camelCaseFieldName,
-          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->resultAndThen(field =>
+          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->Result.flatMap(field =>
             switch fdef.fieldValueType {
             | RelFieldOption(relTableDef, _) =>
               Ok(
@@ -168,8 +213,7 @@ let dereferenceGenericSchema: (
                     ),
                   ),
               )
-
-            | _ => Err("throw this away")
+            | _ => Error("throw this away")
             }
           ),
         ))
@@ -179,23 +223,23 @@ let dereferenceGenericSchema: (
         (
           // scalarish field stuff
           fdef.camelCaseFieldName,
-          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->resultAndThen(field => {
+          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->Result.flatMap(field => {
             if allowedAirtableFieldTypes->Array.some(atTypeName => {
               atTypeName->trimLower == field._type->trimLower
             }) {
               Ok({
                 rawField: field,
-                string: buildScalarishRecordFieldBuilder(field, getString),
-                stringOpt: buildScalarishRecordFieldBuilder(field, getStringOption),
-                int: buildScalarishRecordFieldBuilder(field, getInt),
-                bool: buildScalarishRecordFieldBuilder(field, getBool),
-                intBool: buildScalarishRecordFieldBuilder(field, getIntAsBool),
-                momentOption: buildScalarishRecordFieldBuilder(field, getMomentOption),
+                string: scalarishBuilder(field, getString),
+                stringOpt: scalarishBuilder(field, getStringOption),
+                int: scalarishBuilder(field, getInt),
+                bool: scalarishBuilder(field, getBool),
+                intBool: scalarishBuilder(field, getIntAsBool),
+                momentOption: scalarishBuilder(field, getMomentOption),
                 sortAsc: {field: field, direction: `asc`},
                 sortDesc: {field: field, direction: `desc`},
               })
             } else {
-              Err(
+              Error(
                 `field ${field.name} has type of ${field._type} but only types [${allowListStr}] are allowed`,
               )
             }
@@ -203,7 +247,7 @@ let dereferenceGenericSchema: (
         )
       })
       let allFieldsPair = {
-        // throw away the errors
+        // throw away the errors--we get all of them from building up the other arrays
         let (_, allFields) = tableFieldPairs->Array.map(second) |> partitionErrors
         (
           tdef.camelCaseTableName,
@@ -230,7 +274,7 @@ let dereferenceGenericSchema: (
     encountered,
   ), str) => {
     if encountered->Set.String.has(str) {
-      (errors->Array.concat([`string key appears multiple times in schema: ${str}`]), encountered)
+      (errors->Array.concat([`string key [${str}] appears multiple times in schema`]), encountered)
     } else {
       (errors, encountered->Set.String.add(str))
     }
@@ -240,7 +284,7 @@ let dereferenceGenericSchema: (
     arrOfTup->Array.reduce(([], Map.String.empty), ((errStrings, theMap), (stringKey, result)) => {
       switch result {
       | Ok(thing) => (errStrings, theMap->Map.String.set(stringKey, thing))
-      | Err(err) => (errStrings->Array.concat([err]), theMap)
+      | Error(err) => (errStrings->Array.concat([err]), theMap)
       }
     })
   }
@@ -249,6 +293,7 @@ let dereferenceGenericSchema: (
   let (_, allFieldMap) = buildDict(allFieldsPairs)
   let (vqgErrors, tableishMap) = buildDict(vgqs)
   let (_, relMap) = buildDict(relVgqs)
+
   let mapGetAllFields: ((string => array<airtableRawField>) => _) => _ = thing =>
     thing(allFieldMap->Map.String.getExn)
 
@@ -261,9 +306,15 @@ let dereferenceGenericSchema: (
       tableish: tableishMap->Map.String.map(mapGetAllFields),
       rels: relMap->Map.String.map(mapGetAllFields),
     })
-  | _ => Err(allErrors |> joinWith("\n"))
+  | _ => Error(allErrors |> joinWith("\n"))
   }
 }
+
+/**
+These three marry the generic schema with the generated schema
+by returning the typed version of what were' looking for 
+in exchange for various closures 
+*/
 
 let getField: (genericSchema, string) => scalarishField = (objs, key) =>
   objs.fields->Map.String.getExn(key)
@@ -289,6 +340,9 @@ let getQueryableRelField: (
   rawRec->rels->mapVGQ(wrap(gschem))
 }
 
+/*
+Parse the schema definition into the merge vars defined below. 
+*/
 type rec schemaMergeVars = {
   schemaTypeName: string,
   genericSchemaTypeName: string,
@@ -321,10 +375,14 @@ and fieldMergeVars = {
   tableFieldBuilderInvocation: string,
 }
 
+// the rel field declarations are used three separate places, so we need some
+// configurability for building the declarations
 let relFieldDeclBuilder: (string, string, bool, bool) => (string, string) = (
   targetRecordTypeName,
   invokeQueryable,
+  // is this for a single record or multiple
   isSingle,
+  // is the declaration wrapped in brackets
   inBrackets,
 ) => {
   let s_ = isSingle ? "" : "s"
@@ -408,7 +466,6 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
     rawRecordVarName: rawRecordVarName,
     tableRecordMergeVars: tableDefs->Array.map(tdef => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(tdef)
-      let getTableInvocation = `getTable(${genericSchemaVarName},"${tdef.camelCaseTableName}")`
       let getQueryableTableOrViewInvocation: string => string = tableishNameStr =>
         `getQueryableTableOrView(${genericSchemaVarName},"${tableishNameStr}",${recordBuilderFnName})`
       let (
@@ -448,7 +505,6 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
             false,
             true,
           )
-          let getViewInvocation = `getView(${genericSchemaVarName},"${vdef.camelCaseViewName}")`
           ((vdef.camelCaseViewName, typeStr), (vdef.camelCaseViewName, declStr))
         })->Array.unzip
       {
@@ -479,6 +535,11 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
   }
 }
 
+/*
+Write out the type defs and structure defs for the schema. 
+It tries to do this in a readable fashion by making relatively simple calls to existing
+structures which are coded in ml rather than generated
+*/
 let codeGenSchema: schemaMergeVars => string = ({
   schemaTypeName,
   tableRecordMergeVars,
@@ -553,6 +614,12 @@ open Airtable
 open SchemaDefinition
 open GenericSchema
 
+// warnings that complain about matching fields in mut recursive types
+// and overlapping labels
+// and we dgaf in this case... it's p much of intentional
+@@warning("-30")
+@@warning("-45")
+
 type rec ${recursiveRecordTypeDeclarations} and ${recursiveTableTypeDeclarations}
 
 type ${schemaTypeName} = {
@@ -564,7 +631,7 @@ let rec ${recursiveRecordBuilderDeclarations}
 let buildSchema: array<airtableTableDef> => ${schemaTypeName} = tdefs => {
   let base = useBase()
   switch(dereferenceGenericSchema(base,tdefs)) {
-    | Err(errstr) => Js.Exn.raiseError(errstr)
+    | Error(errstr) => Js.Exn.raiseError(errstr)
     | Ok(gschem) => {
       ${schemaBuilderTableDeclarations}
     }
