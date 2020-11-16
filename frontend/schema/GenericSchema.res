@@ -50,12 +50,12 @@ let dereferenceGenericSchema: (
     airtableRawBase,
     airtableObjectResolutionMethod,
     airtableObjectResolutionMethod,
-  ) => Result.t<airtableRawView, string> = (base, tableres, viewres) => {
+  ) => Result.t<(airtableRawTable, airtableRawView), string> = (base, tableres, viewres) => {
     getTable(base, tableres)->Result.flatMap(table =>
       switch viewres {
       | ByName(name) =>
         getViewByName(table, name)->optionToError(`cannot dereference view by name ${name}`)
-      }
+      }->Result.map(view => (table, view))
     )
   }
 
@@ -63,15 +63,14 @@ let dereferenceGenericSchema: (
     airtableRawBase,
     airtableObjectResolutionMethod,
     airtableFieldResolutionMethod,
-  ) => Result.t<airtableRawField, string> = (base, tableres, fieldres) => {
+  ) => Result.t<(airtableRawTable, airtableRawField), string> = (base, tableres, fieldres) =>
     getTable(base, tableres)->Result.flatMap(table =>
       switch fieldres {
       | ByName(name) =>
         getFieldByName(table, name)->optionToError(`cannot dereference field by name ${name}`)
       | PrimaryField => Ok(table.primaryField)
-      }
+      }->Result.map(field => (table, field))
     )
-  }
 
   /** 
   gather together all the results of recursion down the the schema tree
@@ -123,7 +122,9 @@ let dereferenceGenericSchema: (
       let viewVGQPairs =
         tdef.tableViews->Array.map(vdef => (
           vdef.camelCaseViewName,
-          getView(base, tdef.resolutionMethod, vdef.resolutionMethod)->Result.flatMap(view => {
+          getView(base, tdef.resolutionMethod, vdef.resolutionMethod)
+          ->Result.map(second)
+          ->Result.flatMap(view => {
             Ok(
               getAllFields => {
                 buildVGQ(getViewRecordsQueryResult(view, getAllFields(tdef.camelCaseTableName)))
@@ -135,7 +136,9 @@ let dereferenceGenericSchema: (
       let relVGQPair =
         tdef.tableFields->Array.map(fdef => (
           fdef.camelCaseFieldName,
-          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->Result.flatMap(field =>
+          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)
+          ->Result.map(second)
+          ->Result.flatMap(field =>
             switch fdef.fieldValueType {
             | RelFieldOption(relTableDef, _) =>
               Ok(
@@ -158,18 +161,21 @@ let dereferenceGenericSchema: (
         (
           // scalarish field stuff
           fdef.camelCaseFieldName,
-          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->Result.flatMap(field => {
+          getField(base, tdef.resolutionMethod, fdef.resolutionMethod)->Result.flatMap(((
+            table,
+            field,
+          )) => {
             if allowedAirtableFieldTypes->Array.some(atTypeName => {
               atTypeName->trimLower == field._type->trimLower
             }) {
               Ok({
                 rawField: field,
-                string: scalarishBuilder(field, getString),
-                stringOpt: scalarishBuilder(field, getStringOption),
-                int: scalarishBuilder(field, getInt),
-                bool: scalarishBuilder(field, getBool),
-                intBool: scalarishBuilder(field, getIntAsBool),
-                momentOption: scalarishBuilder(field, getMomentOption),
+                string: scalarishBuilder(table, field, getString),
+                stringOpt: scalarishBuilder(table, field, getStringOption),
+                int: scalarishBuilder(table, field, getInt),
+                bool: scalarishBuilder(table, field, getBool),
+                intBool: scalarishBuilder(table, field, getIntAsBool),
+                momentOption: scalarishBuilder(table, field, getMomentOption),
                 sortAsc: {field: field, direction: `asc`},
                 sortDesc: {field: field, direction: `desc`},
               })

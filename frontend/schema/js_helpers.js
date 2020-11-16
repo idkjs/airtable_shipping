@@ -88,6 +88,13 @@ function selectRecordsFromTableOrView (tableOrView, fetchfields, sortsArr) {
   })
 }
 
+function buildUpdateFieldObject (arrTuple) {
+  let obj = {}
+  arrTuple.forEach(el => (obj[el[0].id] = el[1]))
+  console.log(obj)
+  return obj
+}
+
 exports.prepBareString = prepBareString
 exports.prepStringOption = prepStringOption
 exports.prepInt = prepInt
@@ -96,3 +103,4 @@ exports.prepIntAsBool = prepIntAsBool
 exports.prepMomentOption = prepMomentOption
 exports.prepRelFieldQueryResult = prepRelFieldQueryResult
 exports.selectRecordsFromTableOrView = selectRecordsFromTableOrView
+exports.buildUpdateFieldObject = buildUpdateFieldObject

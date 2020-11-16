@@ -52,6 +52,7 @@ type readWriteScalarRecordField<'t> = {
   read: unit => 't,
   // don't need it yet
   //writeAsync: 't => Js.Promise.t<unit>,
+  updateAsync: 't => Js.Promise.t<unit>,
   render: unit => React.element,
 }
 type singleRelRecordField<'relT> = {
@@ -62,6 +63,7 @@ type multipleRelRecordField<'relT> = {
   getRecords: array<recordSortParam<'relT>> => array<'relT>,
   useRecords: array<recordSortParam<'relT>> => array<'relT>,
   getRecordById: string => option<'relT>,
+  useRecordById: string => option<'relT>,
 }
 
 /**
@@ -146,6 +148,7 @@ type veryGenericQueryable<'qType> = {
   useRecords: array<airtableRawSortParam> => array<'qType>,
   // query specific
   getRecordById: string => option<'qType>,
+  useRecordById: string => option<'qType>,
 }
 
 // everything from airtable comes back as a query result if you want it that way
@@ -161,6 +164,7 @@ let buildVGQ: (array<airtableRawSortParam> => airtableRawRecordQueryResult) => v
     getRecord: () => []->getQ->useQueryResult(false)->Array.get(0),
     useRecord: () => []->getQ->useQueryResult(true)->Array.get(0),
     getRecordById: str => []->getQ->getRecordById(str),
+    useRecordById: str => []->getQ->useLoadableHook->getRecordById(str),
   }
 }
 
@@ -173,12 +177,14 @@ let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (
   getRecords: p => orig.getRecords(p)->Array.map(map),
   useRecords: p => orig.useRecords(p)->Array.map(map),
   getRecordById: p => orig.getRecordById(p)->Option.map(map),
+  useRecordById: p => orig.useRecordById(p)->Option.map(map),
 }
 
 let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelRecordField<'relT> = vgq => {
   getRecords: vgq.getRecords,
   useRecords: vgq.useRecords,
   getRecordById: vgq.getRecordById,
+  useRecordById: vgq.useRecordById,
 }
 let asSingleRelField: veryGenericQueryable<'relT> => singleRelRecordField<'relT> = vgq => {
   getRecord: vgq.getRecord,
@@ -208,15 +214,18 @@ and scalarishRecordFieldBuilder<'scalarish> = {
 // fulfiil the scalarishRecordFieldBuilder interface when
 // given a prep function
 let scalarishBuilder: (
+  airtableRawTable,
   airtableRawField,
   (airtableRawRecord, airtableRawField) => 'scalarish,
-) => scalarishRecordFieldBuilder<'scalarish> = (rawField, prepFn) => {
+) => scalarishRecordFieldBuilder<'scalarish> = (rawTable, rawField, prepFn) => {
   buildReadOnly: rawRec => {
     read: () => prepFn(rawRec, rawField),
     render: () => <CellRenderer field=rawField record=rawRec />,
   },
   buildReadWrite: rawRec => {
     read: () => prepFn(rawRec, rawField),
+    updateAsync: value =>
+      updateRecordAsync(rawTable, rawRec, buildUpdateFieldObject([(rawField, value)])),
     render: () => <CellRenderer field=rawField record=rawRec />,
   },
 }

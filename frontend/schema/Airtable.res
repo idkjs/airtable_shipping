@@ -1,8 +1,13 @@
+type airtableFieldId
+type airtableRecordId
 type airtableRawField = {
   name: string,
   @bs.as("type")
   _type: string,
 }
+
+type airtableUpdateFieldDetails
+
 type airtableRawView
 type airtableRawTable = {primaryField: airtableRawField}
 type airtableRawBase
@@ -32,6 +37,20 @@ external getFieldByName: (airtableRawTable, string) => option<airtableRawField> 
 external getRecordById: (airtableRawRecordQueryResult, string) => option<airtableRawRecord> =
   "getRecordByIdIfExists"
 
+@bs.send
+external updateRecordAsync: (
+  airtableRawTable,
+  airtableRawRecord,
+  airtableUpdateFieldDetails,
+) => Js.Promise.t<unit> = "updateRecordAsync"
+
+@bs.module("@airtable/blocks/ui")
+external useLoadableHookInternal: airtableRawRecordQueryResult => unit = "useLoadable"
+// make the above chainable
+let useLoadableHook: airtableRawRecordQueryResult => airtableRawRecordQueryResult = arrqr => {
+  useLoadableHookInternal(arrqr)
+  arrqr
+}
 // this is ui thing, but we only use it in here
 module CellRenderer = {
   @bs.module("@airtable/blocks/ui") @react.component
@@ -73,3 +92,7 @@ external getViewRecordsQueryResult: (
   array<airtableRawField>,
   array<airtableRawSortParam>,
 ) => airtableRawRecordQueryResult = "selectRecordsFromTableOrView"
+
+@bs.module("./js_helpers")
+external buildUpdateFieldObject: array<(airtableRawField, 't)> => airtableUpdateFieldDetails =
+  "buildUpdateFieldObject"

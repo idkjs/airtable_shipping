@@ -4,6 +4,7 @@ let make = (~state: Reducer.state, ~dispatch, ~schema: Schema.schema) => {
   open Util
   open AirtableUI
   open Schema
+  open SkuOrderTrackingDialog
 
   let trackingRecords: array<skuOrderTrackingRecord> =
     schema.skuOrderTracking.hasTrackingNumbersView.useRecords([
@@ -18,7 +19,14 @@ let make = (~state: Reducer.state, ~dispatch, ~schema: Schema.schema) => {
     })
     ->Array.keep(record => {
       let trimmed = state.searchString->Js.String.trim
+      // keep everything if we don't have a search string, else get items that include the search query
       trimmed == "" || Js.String.includes(trimmed, record.trackingNumber.read())
+    })
+
+  // so this is a hook, remember
+  let recordDialog =
+    Reducer.useFocusedTrackingRecord(state, schema)->Option.mapWithDefault(React.string(""), r => {
+      parseRecordState(r, dispatch, state).dialog
     })
   <div>
     <Heading> {React.string("Tracking Numbers")} </Heading>
@@ -48,7 +56,13 @@ let make = (~state: Reducer.state, ~dispatch, ~schema: Schema.schema) => {
           accessor: record => record.warehouseNotes.render(),
           tdStyle: ReactDOM.Style.make(~width="35%", ()),
         },
+        {
+          header: `Action`,
+          accessor: record => parseRecordState(record, dispatch, state).activationButton,
+          tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
+        },
       ]
     />
+    {recordDialog}
   </div>
 }
