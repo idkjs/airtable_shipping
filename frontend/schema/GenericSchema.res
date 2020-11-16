@@ -23,55 +23,7 @@ type rec genericSchema = {
   // things which need a record to return a query result
   rels: Map.String.t<airtableRawRecord => veryGenericQueryable<airtableRawRecord>>,
 }
-and scalarishField = {
-  rawField: airtableRawField,
-  string: scalarishRecordFieldBuilder<string>,
-  stringOpt: scalarishRecordFieldBuilder<option<string>>,
-  int: scalarishRecordFieldBuilder<int>,
-  bool: scalarishRecordFieldBuilder<bool>,
-  intBool: scalarishRecordFieldBuilder<bool>,
-  momentOption: scalarishRecordFieldBuilder<option<airtableMoment>>,
-  sortAsc: airtableRawSortParam,
-  sortDesc: airtableRawSortParam,
-}
-and scalarishRecordFieldBuilder<'scalarish> = {
-  // utility type for scalarish
-  buildReadOnly: airtableRawRecord => readOnlyScalarRecordField<'scalarish>,
-  buildReadWrite: airtableRawRecord => readWriteScalarRecordField<'scalarish>,
-}
-and veryGenericQueryable<'qType> = {
-  // query single
-  getRecord: unit => option<'qType>,
-  useRecord: unit => option<'qType>,
-  // query multiple
-  getRecords: array<airtableRawSortParam> => array<'qType>,
-  useRecords: array<airtableRawSortParam> => array<'qType>,
-}
 
-// allows any VGQ object to be wrapped into
-// a fully typed record builder type
-let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (orig, map) => {
-  getRecord: p => orig.getRecord(p)->Option.map(map),
-  useRecord: p => orig.useRecord(p)->Option.map(map),
-  getRecords: p => orig.getRecords(p)->Array.map(map),
-  useRecords: p => orig.useRecords(p)->Array.map(map),
-}
-
-// fulfiil the scalarishRecordFieldBuilder interface when
-// given a prep function
-let scalarishBuilder: (
-  airtableRawField,
-  (airtableRawRecord, airtableRawField) => 'scalarish,
-) => scalarishRecordFieldBuilder<'scalarish> = (rawField, prepFn) => {
-  buildReadOnly: rawRec => {
-    read: () => prepFn(rawRec, rawField),
-    render: () => <CellRenderer field=rawField record=rawRec />,
-  },
-  buildReadWrite: rawRec => {
-    read: () => prepFn(rawRec, rawField),
-    render: () => <CellRenderer field=rawField record=rawRec />,
-  },
-}
 type objResult<'at> = Result.t<'at, string>
 
 /*
@@ -119,23 +71,6 @@ let dereferenceGenericSchema: (
       | PrimaryField => Ok(table.primaryField)
       }
     )
-  }
-
-  // everything from airtable comes back as a query result if you want it that way
-  // this takes a function that provides one and creates a generic queryable thing
-  let buildVGQ: (
-    array<airtableRawSortParam> => airtableRawRecordQueryResult
-  ) => veryGenericQueryable<airtableRawRecord> = getQ => {
-    let useQueryResult: (airtableRawRecordQueryResult, bool) => array<airtableRawRecord> = (
-      q,
-      use,
-    ) => use ? useRecords(q) : q.records
-    {
-      getRecords: params => params->getQ->useQueryResult(false),
-      useRecords: params => params->getQ->useQueryResult(true),
-      getRecord: () => []->getQ->useQueryResult(false)->Array.get(0),
-      useRecord: () => []->getQ->useQueryResult(true)->Array.get(0),
-    }
   }
 
   /** 
@@ -358,7 +293,8 @@ and tableRecordMergeVars = {
   recordVarNamesToBuilderInvocation: array<(string, string)>,
   // table type
   tableSchemaAccessorName: string,
-  declareGetAndUse: string,
+  relFieldType: string,
+  relFieldDeclaration: string,
   tableTypeName: string,
   typeOfTableRecordAccess: string,
   tableVarNamesToBuilderInvocation: array<(string, string)>,
@@ -377,25 +313,18 @@ and fieldMergeVars = {
 
 // the rel field declarations are used three separate places, so we need some
 // configurability for building the declarations
-let relFieldDeclBuilder: (string, string, bool, bool) => (string, string) = (
+let relFieldDeclBuilder: (string, string, bool) => (string, string) = (
   targetRecordTypeName,
   invokeQueryable,
   // is this for a single record or multiple
   isSingle,
-  // is the declaration wrapped in brackets
-  inBrackets,
-) => {
-  let s_ = isSingle ? "" : "s"
-  let (o_, c_) = inBrackets ? ("{", "}") : ("", "")
-  (
-    isSingle
-      ? `singleRelRecordField<${targetRecordTypeName}>`
-      : `multipleRelRecordField<${targetRecordTypeName}>`,
-    `${o_}
-      getRecord${s_}: ${invokeQueryable}.getRecord${s_},
-      useRecord${s_}: ${invokeQueryable}.useRecord${s_}${c_}`,
-  )
-}
+) => (
+  isSingle
+    ? `singleRelRecordField<${targetRecordTypeName}>`
+    : `multipleRelRecordField<${targetRecordTypeName}>`,
+  isSingle ? `asSingleRelField(${invokeQueryable})` : `asMultipleRelField(${invokeQueryable})`,
+)
+
 let getFieldMergeVars = (
   ~fieldDef: airtableFieldDef,
   ~genericSchemaVarName: string,
@@ -405,6 +334,7 @@ let getFieldMergeVars = (
   let getFieldInvocation = `getField(${genericSchemaVarName},"${fieldDef.camelCaseFieldName}")`
   let getRelFieldInvocation: string => string = wrapperName =>
     `getQueryableRelField(${genericSchemaVarName},"${fieldDef.camelCaseFieldName}", ${wrapperName}, ${rawRecordVarName})`
+
   let (
     recordFieldAccessorStructureType,
     recordFieldAccessorBuilderInvocation,
@@ -429,16 +359,12 @@ let getFieldMergeVars = (
     }
   | RelFieldOption(relTableDef, isSingle) => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(relTableDef)
-      let (recordFieldTypeName, fieldBuilder) = {
-        let builderStr = s_ => {
-          let rfd = getRelFieldInvocation(recordBuilderFnName)
-          `{getRecord${s_}: ${rfd}.getRecord${s_},useRecord${s_}: ${rfd}.useRecord${s_}}`
-        }
-        isSingle
-          ? (`singleRelRecordField`, builderStr(""))
-          : (`multipleRelRecordField`, builderStr("s"))
-      }
-      (`${recordFieldTypeName}<${tableRecordTypeName}>`, fieldBuilder)
+      let (recordFieldTypeName, fieldBuilder) = relFieldDeclBuilder(
+        tableRecordTypeName,
+        getRelFieldInvocation(recordBuilderFnName),
+        isSingle,
+      )
+      (recordFieldTypeName, fieldBuilder)
     }
   }
   {
@@ -503,10 +429,16 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
             tableRecordTypeName,
             getQueryableTableOrViewInvocation(vdef.camelCaseViewName),
             false,
-            true,
           )
           ((vdef.camelCaseViewName, typeStr), (vdef.camelCaseViewName, declStr))
         })->Array.unzip
+
+      let (relFieldType, relFieldDeclaration) = relFieldDeclBuilder(
+        tableRecordTypeName,
+        getQueryableTableOrViewInvocation(tdef.camelCaseTableName),
+        false,
+      )
+
       {
         //rec
         recordTypeName: tableRecordTypeName,
@@ -515,15 +447,8 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
         recordVarNamesToBuilderInvocation: recordVarNamesToBuilderInvocation,
         // tab
         tableSchemaAccessorName: tdef.camelCaseTableName,
-        declareGetAndUse: {
-          let (_, dgau) = relFieldDeclBuilder(
-            tableRecordTypeName,
-            getQueryableTableOrViewInvocation(tdef.camelCaseTableName),
-            false,
-            false,
-          )
-          dgau
-        },
+        relFieldType: relFieldType,
+        relFieldDeclaration: relFieldDeclaration,
         tableTypeName: `${tdef.camelCaseTableName}Table`,
         typeOfTableRecordAccess: `array<${tableRecordTypeName}>`,
         tableVarNamesToBuilderInvocation: tableVarNamesToBuilderInvocation,
@@ -564,14 +489,12 @@ let codeGenSchema: schemaMergeVars => string = ({
 
   let recursiveTableTypeDeclarations = tableRecordMergeVars->Array.map(({
     tableTypeName,
-    recordTypeName,
-    typeOfTableRecordAccess,
     tableVarNamesToTypes,
     tableViewNamesToTypes,
+    relFieldType,
   }) => {
     `${tableTypeName} = {
-      getRecords: array<recordSortParam<${recordTypeName}>> => ${typeOfTableRecordAccess},
-      useRecords: array<recordSortParam<${recordTypeName}>> => ${typeOfTableRecordAccess},
+      rel: ${relFieldType},
       ${tableViewNamesToTypes->fieldDecl}
       ${tableVarNamesToTypes->fieldDecl}
     }`
@@ -600,10 +523,10 @@ let codeGenSchema: schemaMergeVars => string = ({
     tableSchemaAccessorName,
     tableVarNamesToBuilderInvocation,
     tableViewNamesToBuilderInvocations,
-    declareGetAndUse,
+    relFieldDeclaration,
   }) => {
     `${tableSchemaAccessorName}: {
-        ${declareGetAndUse},
+        rel: ${relFieldDeclaration},
         ${tableViewNamesToBuilderInvocations->fieldDecl}
         ${tableVarNamesToBuilderInvocation->fieldDecl}
     },`

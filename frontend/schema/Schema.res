@@ -68,8 +68,7 @@ and boxLineRecord = {
   qty: readWriteScalarRecordField<int>,
 }
 and skuOrderTrackingTable = {
-  getRecords: array<recordSortParam<skuOrderTrackingRecord>> => array<skuOrderTrackingRecord>,
-  useRecords: array<recordSortParam<skuOrderTrackingRecord>> => array<skuOrderTrackingRecord>,
+  rel: multipleRelRecordField<skuOrderTrackingRecord>,
   hasTrackingNumbersView: multipleRelRecordField<skuOrderTrackingRecord>,
   trackingNumberField: tableSchemaField<skuOrderTrackingRecord>,
   skuOrdersField: tableSchemaField<skuOrderTrackingRecord>,
@@ -79,8 +78,7 @@ and skuOrderTrackingTable = {
   warehouseNotesField: tableSchemaField<skuOrderTrackingRecord>,
 }
 and skuOrderTable = {
-  getRecords: array<recordSortParam<skuOrderRecord>> => array<skuOrderRecord>,
-  useRecords: array<recordSortParam<skuOrderRecord>> => array<skuOrderRecord>,
+  rel: multipleRelRecordField<skuOrderRecord>,
   orderNameField: tableSchemaField<skuOrderRecord>,
   trackingRecordField: tableSchemaField<skuOrderRecord>,
   skuOrderSkuField: tableSchemaField<skuOrderRecord>,
@@ -95,16 +93,14 @@ and skuOrderTable = {
   receivingNotesField: tableSchemaField<skuOrderRecord>,
 }
 and skuTable = {
-  getRecords: array<recordSortParam<skuRecord>> => array<skuRecord>,
-  useRecords: array<recordSortParam<skuRecord>> => array<skuRecord>,
+  rel: multipleRelRecordField<skuRecord>,
   skuNameField: tableSchemaField<skuRecord>,
   serialNumberField: tableSchemaField<skuRecord>,
   isSerialRequiredField: tableSchemaField<skuRecord>,
   lifetimeOrderQtyField: tableSchemaField<skuRecord>,
 }
 and boxDestinationTable = {
-  getRecords: array<recordSortParam<boxDestinationRecord>> => array<boxDestinationRecord>,
-  useRecords: array<recordSortParam<boxDestinationRecord>> => array<boxDestinationRecord>,
+  rel: multipleRelRecordField<boxDestinationRecord>,
   destNameField: tableSchemaField<boxDestinationRecord>,
   boxesField: tableSchemaField<boxDestinationRecord>,
   currentMaximalBoxNumberField: tableSchemaField<boxDestinationRecord>,
@@ -113,8 +109,7 @@ and boxDestinationTable = {
   isSerialBoxField: tableSchemaField<boxDestinationRecord>,
 }
 and boxTable = {
-  getRecords: array<recordSortParam<boxRecord>> => array<boxRecord>,
-  useRecords: array<recordSortParam<boxRecord>> => array<boxRecord>,
+  rel: multipleRelRecordField<boxRecord>,
   boxNumberField: tableSchemaField<boxRecord>,
   boxLinesField: tableSchemaField<boxRecord>,
   boxDestField: tableSchemaField<boxRecord>,
@@ -125,8 +120,7 @@ and boxTable = {
   isEmptyField: tableSchemaField<boxRecord>,
 }
 and boxLineTable = {
-  getRecords: array<recordSortParam<boxLineRecord>> => array<boxLineRecord>,
-  useRecords: array<recordSortParam<boxLineRecord>> => array<boxLineRecord>,
+  rel: multipleRelRecordField<boxLineRecord>,
   nameField: tableSchemaField<boxLineRecord>,
   boxRecordField: tableSchemaField<boxLineRecord>,
   boxLineSkuField: tableSchemaField<boxLineRecord>,
@@ -149,10 +143,9 @@ let rec skuOrderTrackingRecordBuilder: (
 ) => skuOrderTrackingRecord = (gschem, rawRec) => {
   id: rawRec.id,
   trackingNumber: getField(gschem, "trackingNumber").string.buildReadWrite(rawRec),
-  skuOrders: {
-    getRecords: getQueryableRelField(gschem, "skuOrders", skuOrderRecordBuilder, rawRec).getRecords,
-    useRecords: getQueryableRelField(gschem, "skuOrders", skuOrderRecordBuilder, rawRec).useRecords,
-  },
+  skuOrders: asMultipleRelField(
+    getQueryableRelField(gschem, "skuOrders", skuOrderRecordBuilder, rawRec),
+  ),
   isReceived: getField(gschem, "isReceived").intBool.buildReadOnly(rawRec),
   receivedTime: getField(gschem, "receivedTime").momentOption.buildReadWrite(rawRec),
   jocoNotes: getField(gschem, "jocoNotes").string.buildReadWrite(rawRec),
@@ -164,38 +157,15 @@ and skuOrderRecordBuilder: (genericSchema, airtableRawRecord) => skuOrderRecord 
 ) => {
   id: rawRec.id,
   orderName: getField(gschem, "orderName").string.buildReadOnly(rawRec),
-  trackingRecord: {
-    getRecord: getQueryableRelField(
-      gschem,
-      "trackingRecord",
-      skuOrderTrackingRecordBuilder,
-      rawRec,
-    ).getRecord,
-    useRecord: getQueryableRelField(
-      gschem,
-      "trackingRecord",
-      skuOrderTrackingRecordBuilder,
-      rawRec,
-    ).useRecord,
-  },
-  skuOrderSku: {
-    getRecord: getQueryableRelField(gschem, "skuOrderSku", skuRecordBuilder, rawRec).getRecord,
-    useRecord: getQueryableRelField(gschem, "skuOrderSku", skuRecordBuilder, rawRec).useRecord,
-  },
-  skuOrderBoxDest: {
-    getRecord: getQueryableRelField(
-      gschem,
-      "skuOrderBoxDest",
-      boxDestinationRecordBuilder,
-      rawRec,
-    ).getRecord,
-    useRecord: getQueryableRelField(
-      gschem,
-      "skuOrderBoxDest",
-      boxDestinationRecordBuilder,
-      rawRec,
-    ).useRecord,
-  },
+  trackingRecord: asSingleRelField(
+    getQueryableRelField(gschem, "trackingRecord", skuOrderTrackingRecordBuilder, rawRec),
+  ),
+  skuOrderSku: asSingleRelField(
+    getQueryableRelField(gschem, "skuOrderSku", skuRecordBuilder, rawRec),
+  ),
+  skuOrderBoxDest: asSingleRelField(
+    getQueryableRelField(gschem, "skuOrderBoxDest", boxDestinationRecordBuilder, rawRec),
+  ),
   quantityExpected: getField(gschem, "quantityExpected").int.buildReadWrite(rawRec),
   quantityReceived: getField(gschem, "quantityReceived").int.buildReadWrite(rawRec),
   quantityPacked: getField(gschem, "quantityPacked").int.buildReadOnly(rawRec),
@@ -220,10 +190,7 @@ and boxDestinationRecordBuilder: (genericSchema, airtableRawRecord) => boxDestin
 ) => {
   id: rawRec.id,
   destName: getField(gschem, "destName").string.buildReadOnly(rawRec),
-  boxes: {
-    getRecords: getQueryableRelField(gschem, "boxes", boxRecordBuilder, rawRec).getRecords,
-    useRecords: getQueryableRelField(gschem, "boxes", boxRecordBuilder, rawRec).useRecords,
-  },
+  boxes: asMultipleRelField(getQueryableRelField(gschem, "boxes", boxRecordBuilder, rawRec)),
   currentMaximalBoxNumber: getField(gschem, "currentMaximalBoxNumber").int.buildReadOnly(rawRec),
   destinationPrefix: getField(gschem, "destinationPrefix").string.buildReadWrite(rawRec),
   boxOffset: getField(gschem, "boxOffset").int.buildReadWrite(rawRec),
@@ -232,24 +199,12 @@ and boxDestinationRecordBuilder: (genericSchema, airtableRawRecord) => boxDestin
 and boxRecordBuilder: (genericSchema, airtableRawRecord) => boxRecord = (gschem, rawRec) => {
   id: rawRec.id,
   boxNumber: getField(gschem, "boxNumber").string.buildReadOnly(rawRec),
-  boxLines: {
-    getRecords: getQueryableRelField(gschem, "boxLines", boxLineRecordBuilder, rawRec).getRecords,
-    useRecords: getQueryableRelField(gschem, "boxLines", boxLineRecordBuilder, rawRec).useRecords,
-  },
-  boxDest: {
-    getRecord: getQueryableRelField(
-      gschem,
-      "boxDest",
-      boxDestinationRecordBuilder,
-      rawRec,
-    ).getRecord,
-    useRecord: getQueryableRelField(
-      gschem,
-      "boxDest",
-      boxDestinationRecordBuilder,
-      rawRec,
-    ).useRecord,
-  },
+  boxLines: asMultipleRelField(
+    getQueryableRelField(gschem, "boxLines", boxLineRecordBuilder, rawRec),
+  ),
+  boxDest: asSingleRelField(
+    getQueryableRelField(gschem, "boxDest", boxDestinationRecordBuilder, rawRec),
+  ),
   boxNumberOnly: getField(gschem, "boxNumberOnly").int.buildReadWrite(rawRec),
   isMaxBox: getField(gschem, "isMaxBox").intBool.buildReadOnly(rawRec),
   isToggledForPacking: getField(gschem, "isToggledForPacking").bool.buildReadWrite(rawRec),
@@ -262,28 +217,13 @@ and boxLineRecordBuilder: (genericSchema, airtableRawRecord) => boxLineRecord = 
 ) => {
   id: rawRec.id,
   name: getField(gschem, "name").string.buildReadOnly(rawRec),
-  boxRecord: {
-    getRecord: getQueryableRelField(gschem, "boxRecord", boxRecordBuilder, rawRec).getRecord,
-    useRecord: getQueryableRelField(gschem, "boxRecord", boxRecordBuilder, rawRec).useRecord,
-  },
-  boxLineSku: {
-    getRecord: getQueryableRelField(gschem, "boxLineSku", skuRecordBuilder, rawRec).getRecord,
-    useRecord: getQueryableRelField(gschem, "boxLineSku", skuRecordBuilder, rawRec).useRecord,
-  },
-  boxLineSkuOrder: {
-    getRecord: getQueryableRelField(
-      gschem,
-      "boxLineSkuOrder",
-      skuOrderRecordBuilder,
-      rawRec,
-    ).getRecord,
-    useRecord: getQueryableRelField(
-      gschem,
-      "boxLineSkuOrder",
-      skuOrderRecordBuilder,
-      rawRec,
-    ).useRecord,
-  },
+  boxRecord: asSingleRelField(getQueryableRelField(gschem, "boxRecord", boxRecordBuilder, rawRec)),
+  boxLineSku: asSingleRelField(
+    getQueryableRelField(gschem, "boxLineSku", skuRecordBuilder, rawRec),
+  ),
+  boxLineSkuOrder: asSingleRelField(
+    getQueryableRelField(gschem, "boxLineSkuOrder", skuOrderRecordBuilder, rawRec),
+  ),
   qty: getField(gschem, "qty").int.buildReadWrite(rawRec),
 }
 
@@ -293,28 +233,12 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
   | Error(errstr) => Js.Exn.raiseError(errstr)
   | Ok(gschem) => {
       skuOrderTracking: {
-        getRecords: getQueryableTableOrView(
-          gschem,
-          "skuOrderTracking",
-          skuOrderTrackingRecordBuilder,
-        ).getRecords,
-        useRecords: getQueryableTableOrView(
-          gschem,
-          "skuOrderTracking",
-          skuOrderTrackingRecordBuilder,
-        ).useRecords,
-        hasTrackingNumbersView: {
-          getRecords: getQueryableTableOrView(
-            gschem,
-            "hasTrackingNumbersView",
-            skuOrderTrackingRecordBuilder,
-          ).getRecords,
-          useRecords: getQueryableTableOrView(
-            gschem,
-            "hasTrackingNumbersView",
-            skuOrderTrackingRecordBuilder,
-          ).useRecords,
-        },
+        rel: asMultipleRelField(
+          getQueryableTableOrView(gschem, "skuOrderTracking", skuOrderTrackingRecordBuilder),
+        ),
+        hasTrackingNumbersView: asMultipleRelField(
+          getQueryableTableOrView(gschem, "hasTrackingNumbersView", skuOrderTrackingRecordBuilder),
+        ),
         trackingNumberField: {
           sortAsc: getField(gschem, "trackingNumber").sortAsc,
           sortDesc: getField(gschem, "trackingNumber").sortDesc,
@@ -341,8 +265,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
         },
       },
       skuOrder: {
-        getRecords: getQueryableTableOrView(gschem, "skuOrder", skuOrderRecordBuilder).getRecords,
-        useRecords: getQueryableTableOrView(gschem, "skuOrder", skuOrderRecordBuilder).useRecords,
+        rel: asMultipleRelField(getQueryableTableOrView(gschem, "skuOrder", skuOrderRecordBuilder)),
         orderNameField: {
           sortAsc: getField(gschem, "orderName").sortAsc,
           sortDesc: getField(gschem, "orderName").sortDesc,
@@ -393,8 +316,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
         },
       },
       sku: {
-        getRecords: getQueryableTableOrView(gschem, "sku", skuRecordBuilder).getRecords,
-        useRecords: getQueryableTableOrView(gschem, "sku", skuRecordBuilder).useRecords,
+        rel: asMultipleRelField(getQueryableTableOrView(gschem, "sku", skuRecordBuilder)),
         skuNameField: {
           sortAsc: getField(gschem, "skuName").sortAsc,
           sortDesc: getField(gschem, "skuName").sortDesc,
@@ -413,16 +335,9 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
         },
       },
       boxDestination: {
-        getRecords: getQueryableTableOrView(
-          gschem,
-          "boxDestination",
-          boxDestinationRecordBuilder,
-        ).getRecords,
-        useRecords: getQueryableTableOrView(
-          gschem,
-          "boxDestination",
-          boxDestinationRecordBuilder,
-        ).useRecords,
+        rel: asMultipleRelField(
+          getQueryableTableOrView(gschem, "boxDestination", boxDestinationRecordBuilder),
+        ),
         destNameField: {
           sortAsc: getField(gschem, "destName").sortAsc,
           sortDesc: getField(gschem, "destName").sortDesc,
@@ -449,8 +364,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
         },
       },
       box: {
-        getRecords: getQueryableTableOrView(gschem, "box", boxRecordBuilder).getRecords,
-        useRecords: getQueryableTableOrView(gschem, "box", boxRecordBuilder).useRecords,
+        rel: asMultipleRelField(getQueryableTableOrView(gschem, "box", boxRecordBuilder)),
         boxNumberField: {
           sortAsc: getField(gschem, "boxNumber").sortAsc,
           sortDesc: getField(gschem, "boxNumber").sortDesc,
@@ -485,8 +399,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
         },
       },
       boxLine: {
-        getRecords: getQueryableTableOrView(gschem, "boxLine", boxLineRecordBuilder).getRecords,
-        useRecords: getQueryableTableOrView(gschem, "boxLine", boxLineRecordBuilder).useRecords,
+        rel: asMultipleRelField(getQueryableTableOrView(gschem, "boxLine", boxLineRecordBuilder)),
         nameField: {
           sortAsc: getField(gschem, "name").sortAsc,
           sortDesc: getField(gschem, "name").sortDesc,

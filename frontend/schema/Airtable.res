@@ -28,6 +28,9 @@ external getViewByName: (airtableRawTable, string) => option<airtableRawView> =
 @bs.send @bs.return(nullable)
 external getFieldByName: (airtableRawTable, string) => option<airtableRawField> =
   "getFieldByNameIfExists"
+@bs.send @bs.return(nullable)
+external getRecordById: (airtableRawRecordQueryResult, string) => option<airtableRawRecord> =
+  "getRecordByIdIfExists"
 
 // this is ui thing, but we only use it in here
 module CellRenderer = {
