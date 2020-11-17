@@ -33,6 +33,12 @@ let reducer = (state, action) =>
     }
   }
 
+let mapEvent: (action => 'typeofdispatch, 'eventT => action, 'event) => 'typeofdispatch = (
+  dispatch,
+  makeaction,
+  event,
+) => dispatch(makeaction(ReactEvent.Form.target(event)["value"]))
+
 let useFocusedTrackingRecord: (state, schema) => option<skuOrderTrackingRecord> = (st, schema) => {
   schema.skuOrderTracking.rel.useRecordById(st.focusOnTrackingRecordId)
 }

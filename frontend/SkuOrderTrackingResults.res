@@ -24,10 +24,9 @@ let make = (~state: Reducer.state, ~dispatch, ~schema: Schema.schema) => {
     })
 
   // so this is a hook, remember
-  let recordDialog =
-    Reducer.useFocusedTrackingRecord(state, schema)->Option.mapWithDefault(React.string(""), r => {
-      parseRecordState(r, dispatch, state).dialog
-    })
+  let focusedTrackingRecordOpt = schema.skuOrderTracking.rel.useRecordById(
+    state.focusOnTrackingRecordId,
+  )
   <div>
     <Heading> {React.string("Tracking Numbers")} </Heading>
     <Table
@@ -58,11 +57,13 @@ let make = (~state: Reducer.state, ~dispatch, ~schema: Schema.schema) => {
         },
         {
           header: `Action`,
-          accessor: record => parseRecordState(record, dispatch, state).activationButton,
+          accessor: record => parseRecordState(record, state, dispatch).activationButton,
           tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
         },
       ]
     />
-    {recordDialog}
+    {focusedTrackingRecordOpt->Option.mapWithDefault(React.string(""), record =>
+      parseRecordState(record, state, dispatch).dialog
+    )}
   </div>
 }

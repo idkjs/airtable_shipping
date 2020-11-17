@@ -38,7 +38,11 @@ module DialogCloseButton = {
 
 module Heading = {
   @bs.module("@airtable/blocks/ui") @react.component
-  external make: (~children: React.element) => React.element = "Heading"
+  external make: (
+    ~style: ReactDOM.Style.t=?,
+    ~size: string=?,
+    ~children: React.element,
+  ) => React.element = "Heading"
 }
 
 module Button = {
@@ -49,5 +53,6 @@ module Button = {
     ~variant: string,
     ~size: string,
     ~onClick: unit => _,
+    ~style: ReactDOM.Style.t=?,
   ) => React.element = "Button"
 }

@@ -168,17 +168,7 @@ let dereferenceGenericSchema: (
             if allowedAirtableFieldTypes->Array.some(atTypeName => {
               atTypeName->trimLower == field._type->trimLower
             }) {
-              Ok({
-                rawField: field,
-                string: scalarishBuilder(table, field, getString),
-                stringOpt: scalarishBuilder(table, field, getStringOption),
-                int: scalarishBuilder(table, field, getInt),
-                bool: scalarishBuilder(table, field, getBool),
-                intBool: scalarishBuilder(table, field, getIntAsBool),
-                momentOption: scalarishBuilder(table, field, getMomentOption),
-                sortAsc: {field: field, direction: `asc`},
-                sortDesc: {field: field, direction: `desc`},
-              })
+              Ok(buildScalarishField(table, field))
             } else {
               Error(
                 `field ${field.name} has type of ${field._type} but only types [${allowListStr}] are allowed`,

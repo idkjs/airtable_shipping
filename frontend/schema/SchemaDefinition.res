@@ -3,6 +3,7 @@
 
 open Airtable
 open Belt
+open Util
 
 type rec airtableObjectResolutionMethod = ByName(string)
 and airtableTableDef = {
@@ -217,15 +218,35 @@ let scalarishBuilder: (
   airtableRawTable,
   airtableRawField,
   (airtableRawRecord, airtableRawField) => 'scalarish,
-) => scalarishRecordFieldBuilder<'scalarish> = (rawTable, rawField, prepFn) => {
+  'scalarish => _,
+) => scalarishRecordFieldBuilder<'scalarish> = (rawTable, rawField, readPrepFn, writePrepFn) => {
   buildReadOnly: rawRec => {
-    read: () => prepFn(rawRec, rawField),
+    read: () => readPrepFn(rawRec, rawField),
     render: () => <CellRenderer field=rawField record=rawRec />,
   },
   buildReadWrite: rawRec => {
-    read: () => prepFn(rawRec, rawField),
+    read: () => readPrepFn(rawRec, rawField),
     updateAsync: value =>
-      updateRecordAsync(rawTable, rawRec, buildUpdateFieldObject([(rawField, value)])),
+      updateRecordAsync(rawTable, rawRec, buildUpdateFieldObject([(rawField, writePrepFn(value))])),
     render: () => <CellRenderer field=rawField record=rawRec />,
   },
+}
+
+let buildScalarishField: (airtableRawTable, airtableRawField) => scalarishField = (
+  rawTable,
+  rawField,
+) => {
+  rawField: rawField,
+  string: scalarishBuilder(rawTable, rawField, getString, identity),
+  stringOpt: scalarishBuilder(rawTable, rawField, getStringOption, stropt =>
+    stropt->Option.mapWithDefault("", identity)
+  ),
+  int: scalarishBuilder(rawTable, rawField, getInt, identity),
+  bool: scalarishBuilder(rawTable, rawField, getBool, identity),
+  intBool: scalarishBuilder(rawTable, rawField, getIntAsBool, b => b ? 1 : 0),
+  momentOption: scalarishBuilder(rawTable, rawField, getMomentOption, mopt =>
+    mopt->Option.mapWithDefault("", moment => moment->format())
+  ),
+  sortAsc: {field: rawField, direction: `asc`},
+  sortDesc: {field: rawField, direction: `desc`},
 }

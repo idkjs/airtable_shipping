@@ -1,7 +1,6 @@
 let ui = require('@airtable/blocks/ui')
-let mom = require('moment')
+let moment = require('moment')
 
-let moment = mom.moment
 let useRecords = ui.useRecords
 
 function prepBareString (record, field) {
@@ -104,3 +103,4 @@ exports.prepMomentOption = prepMomentOption
 exports.prepRelFieldQueryResult = prepRelFieldQueryResult
 exports.selectRecordsFromTableOrView = selectRecordsFromTableOrView
 exports.buildUpdateFieldObject = buildUpdateFieldObject
+exports.moment = moment

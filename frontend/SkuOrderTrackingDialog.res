@@ -1,4 +1,5 @@
 open AirtableUI
+open Airtable
 open Schema
 open Util
 open Reducer
@@ -8,49 +9,10 @@ open PipelineDialog
 type rec skuOrderTrackingState = {activationButton: React.element, dialog: React.element}
 and dialogArgs = {temp: string}
 
-module EditView = {
-  @react.component
-  let make = (
-    ~record: skuOrderTrackingRecord,
-    ~dispatch: action => unit,
-    ~state: state,
-    ~closeCancel: unit => _,
-  ) =>
-    <PipelineDialog
-      header=`Edit Tracking Record`
-      actionButtons=[
-        <CancelWarningButton onClick=closeCancel>
-          {s("Cancel and don't save")}
-        </CancelWarningButton>,
-        <PrimaryActionButton
-          onClick={() => {
-            dispatch(BlindFieldUpdate(record.warehouseNotes.updateAsync(state.warehouseNotes)))
-            closeCancel()
-          }}>
-          {s("Cancel and don't save")}
-        </PrimaryActionButton>,
-      ]
-      closeCancel>
-      <textarea
-        value=state.warehouseNotes
-        onChange={event => dispatch(UpdateWarehouseNotes(ReactEvent.Form.target(event)["value"]))}
-        cols=80
-        rows=3
-      />
-    </PipelineDialog>
-}
-module Receive = {
-  @react.component
-  let make = (~record: skuOrderTrackingRecord, ~closeCancel: unit => _) =>
-    <PipelineDialog header=`Receive Tracking Number` actionButtons=[] closeCancel>
-      {s("Merp")}
-    </PipelineDialog>
-}
-
-let parseRecordState: (skuOrderTrackingRecord, action => _, state) => skuOrderTrackingState = (
+let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTrackingState = (
   sotr,
-  dispatch,
   state,
+  dispatch,
 ) => {
   let dialogOpen = () => {
     dispatch(UpdateWarehouseNotes(sotr.warehouseNotes.read()))
@@ -60,17 +22,62 @@ let parseRecordState: (skuOrderTrackingRecord, action => _, state) => skuOrderTr
     dispatch(UnfocusTrackingRecord)
     dispatch(UpdateWarehouseNotes(""))
   }
-  if sotr.isReceived.read() {
-    {
-      activationButton: <EditButton onClick=dialogOpen> {s(`Edit/View`)} </EditButton>,
-      dialog: <EditView record=sotr dispatch state closeCancel=dialogClose />,
-    }
-  } else {
-    {
-      activationButton: <PrimaryActionButton onClick=dialogOpen>
-        {s(`Receive`)}
-      </PrimaryActionButton>,
-      dialog: <Receive record=sotr closeCancel=dialogClose />,
-    }
+  let saveWarehouseNotesAndClose = () => {
+    dispatch(BlindFieldUpdate(sotr.warehouseNotes.updateAsync(state.warehouseNotes)))
+    dialogClose()
+  }
+  let receiveTrackingNumberSaveNotesAndClose = () => {
+    dispatch(BlindFieldUpdate(sotr.receivedTime.updateAsync(Some(nowMoment()))))
+    saveWarehouseNotesAndClose()
+  }
+  let unreceiveTrackingNumberSaveNotesAndClose = () => {
+    dispatch(BlindFieldUpdate(sotr.receivedTime.updateAsync(None)))
+    saveWarehouseNotesAndClose()
+  }
+
+  let warehouseNotesOnChange = dispatch->mapEvent(v => UpdateWarehouseNotes(v))
+
+  let cancelAndDontSaveButton =
+    <CancelButton onClick=dialogClose> {s(`Don't save my changes`)} </CancelButton>
+  let saveChangesToNotesButton =
+    <PrimarySaveButton onClick=saveWarehouseNotesAndClose> {s(`Save changes`)} </PrimarySaveButton>
+  let receiveAndSaveNotes =
+    <PrimarySaveButton onClick=receiveTrackingNumberSaveNotesAndClose>
+      {s(`Save Notes and Receive!`)}
+    </PrimarySaveButton>
+  let unreceiveAndSaveNotes =
+    <WarningButton onClick=unreceiveTrackingNumberSaveNotesAndClose>
+      {s(`Unreceive & Save Notes`)}
+    </WarningButton>
+
+  let isReceived = sotr.isReceived.read()
+  {
+    activationButton: isReceived
+      ? <EditButton onClick=dialogOpen> {s(`Edit/View`)} </EditButton>
+      : <PrimaryActionButton onClick=dialogOpen> {s(`Receive`)} </PrimaryActionButton>,
+    dialog: {
+      @react.component
+      let make = () =>
+        <PipelineDialog
+          header={isReceived ? `Edit Tracking Record` : `Receive Tracking Record`}
+          actionButtons={isReceived
+            ? [unreceiveAndSaveNotes, cancelAndDontSaveButton, saveChangesToNotesButton]
+            : [cancelAndDontSaveButton, receiveAndSaveNotes]}
+          closeCancel=dialogClose>
+          <Subheading> {s(`Review Receiving Notes from JoCo Cruise`)} </Subheading>
+          {sotr.jocoNotes.render()}
+          <Subheading>
+            {s(isReceived ? `Edit Warehouse Receiving Notes` : `Enter Warehouse Receiving Notes`)}
+          </Subheading>
+          <textarea
+            style={ReactDOM.Style.make(~marginBottom=`16px`, ~width="100%", ())}
+            value=state.warehouseNotes
+            onChange=warehouseNotesOnChange
+            rows=5
+          />
+        </PipelineDialog>
+
+      make()
+    },
   }
 }

@@ -38,6 +38,9 @@ external getRecordById: (airtableRawRecordQueryResult, string) => option<airtabl
   "getRecordByIdIfExists"
 
 @bs.send
+external format: (airtableMoment, unit) => string = "format"
+
+@bs.send
 external updateRecordAsync: (
   airtableRawTable,
   airtableRawRecord,
@@ -94,5 +97,7 @@ external getViewRecordsQueryResult: (
 ) => airtableRawRecordQueryResult = "selectRecordsFromTableOrView"
 
 @bs.module("./js_helpers")
-external buildUpdateFieldObject: array<(airtableRawField, 't)> => airtableUpdateFieldDetails =
+external buildUpdateFieldObject: array<(airtableRawField, _)> => airtableUpdateFieldDetails =
   "buildUpdateFieldObject"
+@bs.module("./js_helpers")
+external nowMoment: unit => airtableMoment = "moment"
