@@ -38,7 +38,3 @@ let mapEvent: (action => 'typeofdispatch, 'eventT => action, 'event) => 'typeofd
   makeaction,
   event,
 ) => dispatch(makeaction(ReactEvent.Form.target(event)["value"]))
-
-let useFocusedTrackingRecord: (state, schema) => option<skuOrderTrackingRecord> = (st, schema) => {
-  schema.skuOrderTracking.rel.useRecordById(st.focusOnTrackingRecordId)
-}

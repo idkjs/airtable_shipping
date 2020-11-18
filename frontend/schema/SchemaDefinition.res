@@ -26,7 +26,8 @@ and airtableScalarValueDef =
 and airtableFieldValueType =
   | ScalarRW(airtableScalarValueDef)
   | FormulaRollupRO(airtableScalarValueDef)
-  | RelFieldOption(airtableTableDef, bool)
+  // rel table, is single rel, scalar type of rel col, can write to it
+  | RelFieldOption(airtableTableDef, bool, airtableScalarValueDef)
 and airtableFieldResolutionMethod =
   | ByName(string)
   | PrimaryField
@@ -56,11 +57,11 @@ type readWriteScalarRecordField<'t> = {
   updateAsync: 't => Js.Promise.t<unit>,
   render: unit => React.element,
 }
-type singleRelRecordField<'relT> = {
+type singleRelField<'relT> = {
   getRecord: unit => option<'relT>,
   useRecord: unit => option<'relT>,
 }
-type multipleRelRecordField<'relT> = {
+type multipleRelField<'relT> = {
   getRecords: array<recordSortParam<'relT>> => array<'relT>,
   useRecords: array<recordSortParam<'relT>> => array<'relT>,
   getRecordById: string => option<'relT>,
@@ -89,7 +90,7 @@ let allowedAirtableFieldTypes: airtableFieldValueType => array<string> = fvt => 
   let stringy = [`multilineText`, `richText`, `singleLineText`]
   switch fvt {
   | FormulaRollupRO(_) => [`formula`, `rollup`]
-  | RelFieldOption(_, _) => [`multipleRecordLinks`]
+  | RelFieldOption(_, _, _) => [`multipleRecordLinks`]
   | ScalarRW(scalarish) =>
     switch scalarish {
     | BareString => stringy
@@ -181,13 +182,13 @@ let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (
   useRecordById: p => orig.useRecordById(p)->Option.map(map),
 }
 
-let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelRecordField<'relT> = vgq => {
+let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelField<'relT> = vgq => {
   getRecords: vgq.getRecords,
   useRecords: vgq.useRecords,
   getRecordById: vgq.getRecordById,
   useRecordById: vgq.useRecordById,
 }
-let asSingleRelField: veryGenericQueryable<'relT> => singleRelRecordField<'relT> = vgq => {
+let asSingleRelField: veryGenericQueryable<'relT> => singleRelField<'relT> = vgq => {
   getRecord: vgq.getRecord,
   useRecord: vgq.useRecord,
 }

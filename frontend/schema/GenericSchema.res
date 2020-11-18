@@ -140,7 +140,7 @@ let dereferenceGenericSchema: (
           ->Result.map(second)
           ->Result.flatMap(field =>
             switch fdef.fieldValueType {
-            | RelFieldOption(relTableDef, _) =>
+            | RelFieldOption(relTableDef, _, _) =>
               Ok(
                 (getAllFields, record) =>
                   buildVGQ(
@@ -316,10 +316,42 @@ let relFieldDeclBuilder: (string, string, bool) => (string, string) = (
   isSingle,
 ) => (
   isSingle
-    ? `singleRelRecordField<${targetRecordTypeName}>`
-    : `multipleRelRecordField<${targetRecordTypeName}>`,
+    ? `singleRelField<${targetRecordTypeName}>`
+    : `multipleRelField<${targetRecordTypeName}>`,
   isSingle ? `asSingleRelField(${invokeQueryable})` : `asMultipleRelField(${invokeQueryable})`,
 )
+
+let scalarFieldDeclBuilder: (airtableScalarValueDef, string, string, bool) => (string, string) = (
+  scalarish,
+  invokeGetField,
+  rawRecordVarName,
+  canWrite,
+) => {
+  let {reasonReadReturnTypeName, scalarishFieldBuilderAccessorName} = getScalarTypeContext(
+    scalarish,
+  )
+  canWrite
+    ? (
+        `readWriteScalarRecordField<${reasonReadReturnTypeName}>`,
+        `${invokeGetField}.${scalarishFieldBuilderAccessorName}.buildReadWrite(${rawRecordVarName})`,
+      )
+    : (
+        `readOnlyScalarRecordField<${reasonReadReturnTypeName}>`,
+        `${invokeGetField}.${scalarishFieldBuilderAccessorName}.buildReadOnly(${rawRecordVarName})`,
+      )
+}
+
+type relRecordField<'relFieldT, 'scalarFieldT> = {
+  rel: 'relFieldT,
+  scalar: 'scalarFieldT,
+}
+
+let relRecordFieldDeclBuilder: ((string, string), (string, string)) => (string, string) = (
+  (relFieldT, relFieldD),
+  (scalarFieldT, scalarFieldD),
+) => {
+  (`relRecordField<${relFieldT},${scalarFieldT}>`, `{rel: ${relFieldD}, scalar: ${scalarFieldD}}`)
+}
 
 let getFieldMergeVars = (
   ~fieldDef: airtableFieldDef,
@@ -335,32 +367,21 @@ let getFieldMergeVars = (
     recordFieldAccessorStructureType,
     recordFieldAccessorBuilderInvocation,
   ) = switch fieldDef.fieldValueType {
-  | ScalarRW(scalarish) => {
-      let {reasonReadReturnTypeName, scalarishFieldBuilderAccessorName} = getScalarTypeContext(
-        scalarish,
-      )
-      (
-        `readWriteScalarRecordField<${reasonReadReturnTypeName}>`,
-        `${getFieldInvocation}.${scalarishFieldBuilderAccessorName}.buildReadWrite(${rawRecordVarName})`,
-      )
-    }
-  | FormulaRollupRO(scalarish) => {
-      let {reasonReadReturnTypeName, scalarishFieldBuilderAccessorName} = getScalarTypeContext(
-        scalarish,
-      )
-      (
-        `readOnlyScalarRecordField<${reasonReadReturnTypeName}>`,
-        `${getFieldInvocation}.${scalarishFieldBuilderAccessorName}.buildReadOnly(${rawRecordVarName})`,
-      )
-    }
-  | RelFieldOption(relTableDef, isSingle) => {
+  | ScalarRW(scalarish) =>
+    scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, true)
+  | FormulaRollupRO(scalarish) =>
+    scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, false)
+  | RelFieldOption(relTableDef, isSingle, scalarDef) => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(relTableDef)
-      let (recordFieldTypeName, fieldBuilder) = relFieldDeclBuilder(
-        tableRecordTypeName,
-        getRelFieldInvocation(recordBuilderFnName),
-        isSingle,
+
+      relRecordFieldDeclBuilder(
+        relFieldDeclBuilder(
+          tableRecordTypeName,
+          getRelFieldInvocation(recordBuilderFnName),
+          isSingle,
+        ),
+        scalarFieldDeclBuilder(scalarDef, getFieldInvocation, rawRecordVarName, false),
       )
-      (recordFieldTypeName, fieldBuilder)
     }
   }
   {

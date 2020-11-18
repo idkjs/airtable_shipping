@@ -1,28 +1,16 @@
+open Belt
+open Util
+open AirtableUI
+open Schema
+open SkuOrderTrackingDialog
+
 @react.component
-let make = (~state: Reducer.state, ~dispatch, ~schema: Schema.schema) => {
-  open Belt
-  open Util
-  open AirtableUI
-  open Schema
-  open SkuOrderTrackingDialog
-
-  let trackingRecords: array<skuOrderTrackingRecord> =
-    schema.skuOrderTracking.hasTrackingNumbersView.useRecords([
-      schema.skuOrderTracking.isReceivedField.sortAsc,
-    ])
-    ->Array.map(record => {
-      // we grab these and toss em, for now
-      // we'll pass them on to our children another way
-      // this puts them in the airtable cache
-      let _ = record.skuOrders.useRecords([])
-      record
-    })
-    ->Array.keep(record => {
-      let trimmed = state.searchString->Js.String.trim
-      // keep everything if we don't have a search string, else get items that include the search query
-      trimmed == "" || Js.String.includes(trimmed, record.trackingNumber.read())
-    })
-
+let make = (
+  ~state: Reducer.state,
+  ~dispatch,
+  ~schema: Schema.schema,
+  ~trackingRecords: array<skuOrderTrackingRecord>,
+) => {
   // so this is a hook, remember
   let focusedTrackingRecordOpt = schema.skuOrderTracking.rel.useRecordById(
     state.focusOnTrackingRecordId,

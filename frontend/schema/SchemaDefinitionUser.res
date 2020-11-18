@@ -18,7 +18,7 @@ let rec skuOrdersTrackingTable: airtableTableDef = {
     {
       resolutionMethod: ByName(`SKU Orders`),
       camelCaseFieldName: `skuOrders`,
-      fieldValueType: RelFieldOption(skuOrdersTable, false),
+      fieldValueType: RelFieldOption(skuOrdersTable, false, BareString),
     },
     {
       resolutionMethod: ByName(`gtg_was_tracking_number_received`),
@@ -55,17 +55,17 @@ and skuOrdersTable: airtableTableDef = {
     {
       resolutionMethod: ByName(`Tracking Number`),
       camelCaseFieldName: `trackingRecord`,
-      fieldValueType: RelFieldOption(skuOrdersTrackingTable, true),
+      fieldValueType: RelFieldOption(skuOrdersTrackingTable, true, BareString),
     },
     {
       resolutionMethod: ByName(`SKU`),
       camelCaseFieldName: `skuOrderSku`,
-      fieldValueType: RelFieldOption(skusTable, true),
+      fieldValueType: RelFieldOption(skusTable, true, BareString),
     },
     {
       resolutionMethod: ByName(`Onboard Destination`),
       camelCaseFieldName: `skuOrderBoxDest`,
-      fieldValueType: RelFieldOption(boxDestinationsTable, true),
+      fieldValueType: RelFieldOption(boxDestinationsTable, true, BareString),
     },
     {
       resolutionMethod: ByName(`Quantity Ordered`),
@@ -149,7 +149,7 @@ and boxDestinationsTable: airtableTableDef = {
     {
       resolutionMethod: ByName(`Boxes`),
       camelCaseFieldName: `boxes`,
-      fieldValueType: RelFieldOption(boxesTable, false),
+      fieldValueType: RelFieldOption(boxesTable, false, BareString),
     },
     {
       resolutionMethod: ByName(`Current Maximal Box #`),
@@ -186,12 +186,12 @@ and boxesTable: airtableTableDef = {
     {
       resolutionMethod: ByName(`Constituent Box Lines`),
       camelCaseFieldName: `boxLines`,
-      fieldValueType: RelFieldOption(boxLinesTable, false),
+      fieldValueType: RelFieldOption(boxLinesTable, false, BareString),
     },
     {
       resolutionMethod: ByName(`Onboard Destination`),
       camelCaseFieldName: `boxDest`,
-      fieldValueType: RelFieldOption(boxDestinationsTable, true),
+      fieldValueType: RelFieldOption(boxDestinationsTable, true, BareString),
     },
     {
       resolutionMethod: ByName(`# Only`),
@@ -233,17 +233,17 @@ and boxLinesTable: airtableTableDef = {
     {
       resolutionMethod: ByName(`Box #`),
       camelCaseFieldName: `boxRecord`,
-      fieldValueType: RelFieldOption(boxesTable, true),
+      fieldValueType: RelFieldOption(boxesTable, true, BareString),
     },
     {
       resolutionMethod: ByName(`SKU`),
       camelCaseFieldName: `boxLineSku`,
-      fieldValueType: RelFieldOption(skusTable, true),
+      fieldValueType: RelFieldOption(skusTable, true, BareString),
     },
     {
       resolutionMethod: ByName(`SKU Order`),
       camelCaseFieldName: `boxLineSkuOrder`,
-      fieldValueType: RelFieldOption(skuOrdersTable, true),
+      fieldValueType: RelFieldOption(skuOrdersTable, true, BareString),
     },
     {resolutionMethod: ByName(`SKU Qty`), camelCaseFieldName: `qty`, fieldValueType: ScalarRW(Int)},
   ],
