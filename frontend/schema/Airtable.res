@@ -1,5 +1,4 @@
 type airtableFieldId
-type airtableRecordId
 type airtableRawField = {
   name: string,
   @bs.as("type")
@@ -37,6 +36,9 @@ external getFieldByName: (airtableRawTable, string) => option<airtableRawField> 
 @bs.send @bs.return(nullable)
 external getRecordById: (airtableRawRecordQueryResult, string) => option<airtableRawRecord> =
   "getRecordByIdIfExists"
+@bs.send
+external createRecordAsync: (airtableRawTable, airtableObjectMap) => Js.Promise.t<string> =
+  "createRecordAsync"
 
 @bs.send
 external format: (airtableMoment, unit) => string = "format"

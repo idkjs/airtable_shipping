@@ -156,11 +156,14 @@ type singleRelField<'relT> = {
   getRecord: unit => option<'relT>,
   useRecord: unit => option<'relT>,
 }
+type recordId<'relT> = string
+let nullRecordId: recordId<'relT> = ""
+
 type multipleRelField<'relT> = {
   getRecords: array<recordSortParam<'relT>> => array<'relT>,
   useRecords: array<recordSortParam<'relT>> => array<'relT>,
-  getRecordById: string => option<'relT>,
-  useRecordById: string => option<'relT>,
+  getRecordById: recordId<'relT> => option<'relT>,
+  useRecordById: recordId<'relT> => option<'relT>,
 }
 
 let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelField<'relT> = vgq => {
@@ -174,12 +177,39 @@ let asSingleRelField: veryGenericQueryable<'relT> => singleRelField<'relT> = vgq
   useRecord: vgq.useRecord,
 }
 
+type recordCreateUpdateParam<'recordT> = airtableObjectMapComponent
 type genericTableSchemaField<'scalarT> = {
   sortAsc: airtableRawSortParam,
   sortDesc: airtableRawSortParam,
   buildObjectMapComponent: 'scalarT => airtableObjectMapComponent,
 }
 type tableSchemaField<'recordT, 'scalarT> = genericTableSchemaField<'scalarT>
+type genericTableCRUDOperations<'recordT> = {
+  create: array<recordCreateUpdateParam<'recordT>> => Js.Promise.t<recordId<'recordT>>,
+  update: ('recordT, array<recordCreateUpdateParam<'recordT>>) => Js.Promise.t<unit>,
+}
+let buildGenericTableCRUDOperations: airtableRawTable => genericTableCRUDOperations<
+  'recordT,
+> = rawTable => {
+  create: arr => rawTable->createRecordAsync(buildAirtableObjectMap(arr)),
+  update: (reco, arr) => rawTable->updateRecordAsync(reco, buildAirtableObjectMap(arr)),
+}
+external mapGenericTableCRUDOperations: genericTableCRUDOperations<
+  'a,
+> => genericTableCRUDOperations<'b> = "%identity"
+/*
+let mapGenericTableCRUDOperations: (
+  genericTableCRUDOperations<'a>,
+  'a => 'b,
+) => genericTableCRUDOperations<'b> = (gtco, wrp) => {
+  create: gtco.create,
+  update: gtco.update,
+}*/
+
+type genericTable<'recordT> = {
+  vgq: veryGenericQueryable<'recordT>,
+  crud: genericTableCRUDOperations<'recordT>,
+}
 
 type readOnlyScalarRecordField<'t> = {
   read: unit => 't,

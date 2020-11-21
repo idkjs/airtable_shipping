@@ -19,7 +19,7 @@ type rec genericSchema = {
   // read or readwrite to any kind of non relationship field
   fields: Map.String.t<scalarishField>,
   // things that can just return query results
-  tableish: Map.String.t<veryGenericQueryable<airtableRawRecord>>,
+  tableish: Map.String.t<genericTable<airtableRawRecord>>,
   // things which need a record to return a query result
   rels: Map.String.t<airtableRawRecord => veryGenericQueryable<airtableRawRecord>>,
 }
@@ -89,7 +89,7 @@ let dereferenceGenericSchema: (
     array<(
       string,
       // getfields
-      objResult<(string => array<airtableRawField>) => veryGenericQueryable<airtableRawRecord>>,
+      objResult<(string => array<airtableRawField>) => genericTable<airtableRawRecord>>,
     )>,
     array<(
       string,
@@ -114,20 +114,26 @@ let dereferenceGenericSchema: (
       let tableVGQPair = (
         tdef.camelCaseTableName,
         getTable(base, tdef.resolutionMethod)->Result.flatMap(table => Ok(
-          getAllFields =>
-            buildVGQ(getTableRecordsQueryResult(table, getAllFields(tdef.camelCaseTableName))),
+          getAllFields => {
+            vgq: buildVGQ(getTableRecordsQueryResult(table, getAllFields(tdef.camelCaseTableName))),
+            crud: buildGenericTableCRUDOperations(table),
+          },
         )),
       )
 
       let viewVGQPairs =
         tdef.tableViews->Array.map(vdef => (
           vdef.camelCaseViewName,
-          getView(base, tdef.resolutionMethod, vdef.resolutionMethod)
-          ->Result.map(second)
-          ->Result.flatMap(view => {
+          getView(base, tdef.resolutionMethod, vdef.resolutionMethod)->Result.flatMap(((
+            table,
+            view,
+          )) => {
             Ok(
               getAllFields => {
-                buildVGQ(getViewRecordsQueryResult(view, getAllFields(tdef.camelCaseTableName)))
+                vgq: buildVGQ(
+                  getViewRecordsQueryResult(view, getAllFields(tdef.camelCaseTableName)),
+                ),
+                crud: buildGenericTableCRUDOperations(table),
               },
             )
           }),
@@ -257,7 +263,16 @@ let getQueryableTableOrView: (
 ) => veryGenericQueryable<'recordT> = (gschem, keystr, wrap) => {
   let tbish = gschem.tableish->Map.String.getExn(keystr)
   // parameterize with a way to get all fields
-  tbish->mapVGQ(wrap(gschem))
+  tbish.vgq->mapVGQ(wrap(gschem))
+}
+
+let getTableCrudOperations: (genericSchema, string) => genericTableCRUDOperations<'recordT> = (
+  gschem,
+  keystr,
+) => {
+  let tbish = gschem.tableish->Map.String.getExn(keystr)
+  // parameterize with a way to get all fields
+  tbish.crud->mapGenericTableCRUDOperations
 }
 
 let getQueryableRelField: (
@@ -291,6 +306,8 @@ and tableRecordMergeVars = {
   tableSchemaAccessorName: string,
   relFieldType: string,
   relFieldDeclaration: string,
+  tableCrudType: string,
+  tableCrudDeclaration: string,
   tableTypeName: string,
   typeOfTableRecordAccess: string,
   tableVarNamesToBuilderInvocation: array<(string, string)>,
@@ -355,6 +372,15 @@ let tableFieldDeclBuilder: (airtableScalarValueDef, string, string) => (string, 
     `${invokeGetField}.${scalarishFieldBuilderAccessorName}.tableSchemaField`,
   )
 }
+
+let tableCrudDeclBuilder: (string, string, string) => (string, string) = (
+  recordTypeName,
+  genericSchemaVarName,
+  tableCamelName,
+) => (
+  `genericTableCRUDOperations<${recordTypeName}>`,
+  `getTableCrudOperations(${genericSchemaVarName},"${tableCamelName}")`,
+)
 
 type relRecordField<'relFieldT, 'scalarFieldT> = {
   rel: 'relFieldT,
@@ -483,6 +509,12 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
         false,
       )
 
+      let (tableCrudType, tableCrudDeclaration) = tableCrudDeclBuilder(
+        tableRecordTypeName,
+        genericSchemaVarName,
+        tdef.camelCaseTableName,
+      )
+
       {
         //rec
         recordTypeName: tableRecordTypeName,
@@ -493,6 +525,8 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
         tableSchemaAccessorName: tdef.camelCaseTableName,
         relFieldType: relFieldType,
         relFieldDeclaration: relFieldDeclaration,
+        tableCrudType: tableCrudType,
+        tableCrudDeclaration: tableCrudDeclaration,
         tableTypeName: `${tdef.camelCaseTableName}Table`,
         typeOfTableRecordAccess: `array<${tableRecordTypeName}>`,
         tableVarNamesToBuilderInvocation: tableVarNamesToBuilderInvocation,
@@ -526,7 +560,7 @@ let codeGenSchema: schemaMergeVars => string = ({
   }) => {
     // type of record
     `${recordTypeName} = {
-      id: string,
+      id: recordId<${recordTypeName}>,
       ${recordVarNamesToTypes->fieldDecl}
     }`
   }) |> joinWith(" and ")
@@ -536,9 +570,11 @@ let codeGenSchema: schemaMergeVars => string = ({
     tableVarNamesToTypes,
     tableViewNamesToTypes,
     relFieldType,
+    tableCrudType,
   }) => {
     `${tableTypeName} = {
       rel: ${relFieldType},
+      crud: ${tableCrudType},
       ${tableViewNamesToTypes->fieldDecl}
       ${tableVarNamesToTypes->fieldDecl}
     }`
@@ -568,9 +604,11 @@ let codeGenSchema: schemaMergeVars => string = ({
     tableVarNamesToBuilderInvocation,
     tableViewNamesToBuilderInvocations,
     relFieldDeclaration,
+    tableCrudDeclaration,
   }) => {
     `${tableSchemaAccessorName}: {
         rel: ${relFieldDeclaration},
+        crud: ${tableCrudDeclaration},
         ${tableViewNamesToBuilderInvocations->fieldDecl}
         ${tableVarNamesToBuilderInvocation->fieldDecl}
     },`

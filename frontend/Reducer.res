@@ -1,5 +1,6 @@
 open Belt
 open Schema
+open SchemaDefinition
 
 type action =
   | UpdateSearchString(string)
@@ -11,13 +12,13 @@ type action =
 
 type state = {
   searchString: string,
-  focusOnTrackingRecordId: string,
   warehouseNotes: string,
+  focusOnTrackingRecordId: recordId<skuOrderTrackingRecord>,
 }
 
 let initialState: state = {
   searchString: "",
-  focusOnTrackingRecordId: "",
+  focusOnTrackingRecordId: nullRecordId,
   warehouseNotes: "",
 }
 
