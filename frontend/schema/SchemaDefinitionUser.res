@@ -94,7 +94,7 @@ and skuOrdersTable: airtableTableDef = {
     },
     {
       resolutionMethod: ByName(`SKU Received?`),
-      camelCaseFieldName: `skuIsReceived`,
+      camelCaseFieldName: `skuOrderIsReceived`,
       fieldValueType: ScalarRW(Bool),
     },
     {
@@ -180,7 +180,7 @@ and boxesTable: airtableTableDef = {
   tableFields: [
     {
       resolutionMethod: PrimaryField,
-      camelCaseFieldName: `boxNumber`,
+      camelCaseFieldName: `boxName`,
       fieldValueType: FormulaRollupRO(BareString),
     },
     {

@@ -346,13 +346,6 @@ type relRecordField<'relFieldT, 'scalarFieldT> = {
   scalar: 'scalarFieldT,
 }
 
-let relRecordFieldDeclBuilder: ((string, string), (string, string)) => (string, string) = (
-  (relFieldT, relFieldD),
-  (scalarFieldT, scalarFieldD),
-) => {
-  (`relRecordField<${relFieldT},${scalarFieldT}>`, `{rel: ${relFieldD}, scalar: ${scalarFieldD}}`)
-}
-
 let getFieldMergeVars = (
   ~fieldDef: airtableFieldDef,
   ~genericSchemaVarName: string,
@@ -373,6 +366,15 @@ let getFieldMergeVars = (
     scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, false)
   | RelFieldOption(relTableDef, isSingle, scalarDef) => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(relTableDef)
+      let relRecordFieldDeclBuilder: ((string, string), (string, string)) => (string, string) = (
+        (relFieldT, relFieldD),
+        (scalarFieldT, scalarFieldD),
+      ) => {
+        (
+          `relRecordField<${relFieldT},${scalarFieldT}>`,
+          `{rel: ${relFieldD}, scalar: ${scalarFieldD}}`,
+        )
+      }
 
       relRecordFieldDeclBuilder(
         relFieldDeclBuilder(

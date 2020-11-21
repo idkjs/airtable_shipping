@@ -14,7 +14,7 @@ let make = (~columnDefs: array<tableColumnDef<'a>>, ~elements: array<'a>, ~rowId
     ~borderCollapse="collapse",
     (),
   )
-  <table style={baseTdStyle}>
+  <table style={ReactDOM.Style.make(~width="100%", ())->ReactDOM.Style.combine(baseTdStyle)}>
     <thead>
       <tr>
         {columnDefs->Array.map(def =>

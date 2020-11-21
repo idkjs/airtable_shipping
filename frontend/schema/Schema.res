@@ -34,7 +34,7 @@ and skuOrderRecord = {
   quantityPacked: readOnlyScalarRecordField<int>,
   boxedCheckbox: readWriteScalarRecordField<bool>,
   externalProductName: readWriteScalarRecordField<string>,
-  skuIsReceived: readWriteScalarRecordField<bool>,
+  skuOrderIsReceived: readWriteScalarRecordField<bool>,
   skuOrderDestinationPrefix: readOnlyScalarRecordField<string>,
   receivingNotes: readWriteScalarRecordField<string>,
 }
@@ -56,7 +56,7 @@ and boxDestinationRecord = {
 }
 and boxRecord = {
   id: string,
-  boxNumber: readOnlyScalarRecordField<string>,
+  boxName: readOnlyScalarRecordField<string>,
   boxLines: relRecordField<multipleRelField<boxLineRecord>, readOnlyScalarRecordField<string>>,
   boxDest: relRecordField<singleRelField<boxDestinationRecord>, readOnlyScalarRecordField<string>>,
   boxNumberOnly: readWriteScalarRecordField<int>,
@@ -97,7 +97,7 @@ and skuOrderTable = {
   quantityPackedField: tableSchemaField<skuOrderRecord>,
   boxedCheckboxField: tableSchemaField<skuOrderRecord>,
   externalProductNameField: tableSchemaField<skuOrderRecord>,
-  skuIsReceivedField: tableSchemaField<skuOrderRecord>,
+  skuOrderIsReceivedField: tableSchemaField<skuOrderRecord>,
   skuOrderDestinationPrefixField: tableSchemaField<skuOrderRecord>,
   receivingNotesField: tableSchemaField<skuOrderRecord>,
 }
@@ -119,7 +119,7 @@ and boxDestinationTable = {
 }
 and boxTable = {
   rel: multipleRelField<boxRecord>,
-  boxNumberField: tableSchemaField<boxRecord>,
+  boxNameField: tableSchemaField<boxRecord>,
   boxLinesField: tableSchemaField<boxRecord>,
   boxDestField: tableSchemaField<boxRecord>,
   boxNumberOnlyField: tableSchemaField<boxRecord>,
@@ -190,7 +190,7 @@ and skuOrderRecordBuilder: (genericSchema, airtableRawRecord) => skuOrderRecord 
   quantityPacked: getField(gschem, "quantityPacked").int.buildReadOnly(rawRec),
   boxedCheckbox: getField(gschem, "boxedCheckbox").bool.buildReadWrite(rawRec),
   externalProductName: getField(gschem, "externalProductName").string.buildReadWrite(rawRec),
-  skuIsReceived: getField(gschem, "skuIsReceived").bool.buildReadWrite(rawRec),
+  skuOrderIsReceived: getField(gschem, "skuOrderIsReceived").bool.buildReadWrite(rawRec),
   skuOrderDestinationPrefix: getField(gschem, "skuOrderDestinationPrefix").string.buildReadOnly(
     rawRec,
   ),
@@ -220,7 +220,7 @@ and boxDestinationRecordBuilder: (genericSchema, airtableRawRecord) => boxDestin
 }
 and boxRecordBuilder: (genericSchema, airtableRawRecord) => boxRecord = (gschem, rawRec) => {
   id: rawRec.id,
-  boxNumber: getField(gschem, "boxNumber").string.buildReadOnly(rawRec),
+  boxName: getField(gschem, "boxName").string.buildReadOnly(rawRec),
   boxLines: {
     rel: asMultipleRelField(getQueryableRelField(gschem, "boxLines", boxLineRecordBuilder, rawRec)),
     scalar: getField(gschem, "boxLines").string.buildReadOnly(rawRec),
@@ -335,9 +335,9 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
           sortAsc: getField(gschem, "externalProductName").sortAsc,
           sortDesc: getField(gschem, "externalProductName").sortDesc,
         },
-        skuIsReceivedField: {
-          sortAsc: getField(gschem, "skuIsReceived").sortAsc,
-          sortDesc: getField(gschem, "skuIsReceived").sortDesc,
+        skuOrderIsReceivedField: {
+          sortAsc: getField(gschem, "skuOrderIsReceived").sortAsc,
+          sortDesc: getField(gschem, "skuOrderIsReceived").sortDesc,
         },
         skuOrderDestinationPrefixField: {
           sortAsc: getField(gschem, "skuOrderDestinationPrefix").sortAsc,
@@ -398,9 +398,9 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
       },
       box: {
         rel: asMultipleRelField(getQueryableTableOrView(gschem, "box", boxRecordBuilder)),
-        boxNumberField: {
-          sortAsc: getField(gschem, "boxNumber").sortAsc,
-          sortDesc: getField(gschem, "boxNumber").sortDesc,
+        boxNameField: {
+          sortAsc: getField(gschem, "boxName").sortAsc,
+          sortDesc: getField(gschem, "boxName").sortDesc,
         },
         boxLinesField: {
           sortAsc: getField(gschem, "boxLines").sortAsc,

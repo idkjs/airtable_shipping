@@ -6,8 +6,7 @@ open Reducer
 open Belt
 open PipelineDialog
 
-type rec skuOrderTrackingState = {activationButton: React.element, dialog: React.element}
-and dialogArgs = {temp: string}
+type skuOrderTrackingState = {activationButton: React.element, dialog: React.element}
 
 let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTrackingState = (
   sotr,
