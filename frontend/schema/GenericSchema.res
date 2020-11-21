@@ -311,14 +311,16 @@ and fieldMergeVars = {
 // configurability for building the declarations
 let relFieldDeclBuilder: (string, string, bool) => (string, string) = (
   targetRecordTypeName,
-  invokeQueryable,
+  invokeGetQueryableRelField,
   // is this for a single record or multiple
   isSingle,
 ) => (
   isSingle
     ? `singleRelField<${targetRecordTypeName}>`
     : `multipleRelField<${targetRecordTypeName}>`,
-  isSingle ? `asSingleRelField(${invokeQueryable})` : `asMultipleRelField(${invokeQueryable})`,
+  isSingle
+    ? `asSingleRelField(${invokeGetQueryableRelField})`
+    : `asMultipleRelField(${invokeGetQueryableRelField})`,
 )
 
 let scalarFieldDeclBuilder: (airtableScalarValueDef, string, string, bool) => (string, string) = (
@@ -340,6 +342,19 @@ let scalarFieldDeclBuilder: (airtableScalarValueDef, string, string, bool) => (s
         `${invokeGetField}.${scalarishFieldBuilderAccessorName}.buildReadOnly(${rawRecordVarName})`,
       )
 }
+let tableFieldDeclBuilder: (airtableScalarValueDef, string, string) => (string, string) = (
+  scalarDef,
+  invokeGetField,
+  parentRecordTypeName,
+) => {
+  let {reasonReadReturnTypeName, scalarishFieldBuilderAccessorName} = getScalarTypeContext(
+    scalarDef,
+  )
+  (
+    `tableSchemaField<${parentRecordTypeName}, ${reasonReadReturnTypeName}>`,
+    `${invokeGetField}.${scalarishFieldBuilderAccessorName}.tableSchemaField`,
+  )
+}
 
 type relRecordField<'relFieldT, 'scalarFieldT> = {
   rel: 'relFieldT,
@@ -357,13 +372,17 @@ let getFieldMergeVars = (
     `getQueryableRelField(${genericSchemaVarName},"${fieldDef.camelCaseFieldName}", ${wrapperName}, ${rawRecordVarName})`
 
   let (
-    recordFieldAccessorStructureType,
-    recordFieldAccessorBuilderInvocation,
+    (recordFieldAccessorStructureType, recordFieldAccessorBuilderInvocation),
+    scalarDef,
   ) = switch fieldDef.fieldValueType {
-  | ScalarRW(scalarish) =>
-    scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, true)
-  | FormulaRollupRO(scalarish) =>
-    scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, false)
+  | ScalarRW(scalarish) => (
+      scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, true),
+      scalarish,
+    )
+  | FormulaRollupRO(scalarish) => (
+      scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, false),
+      scalarish,
+    )
   | RelFieldOption(relTableDef, isSingle, scalarDef) => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(relTableDef)
       let relRecordFieldDeclBuilder: ((string, string), (string, string)) => (string, string) = (
@@ -376,26 +395,32 @@ let getFieldMergeVars = (
         )
       }
 
-      relRecordFieldDeclBuilder(
-        relFieldDeclBuilder(
-          tableRecordTypeName,
-          getRelFieldInvocation(recordBuilderFnName),
-          isSingle,
+      (
+        relRecordFieldDeclBuilder(
+          relFieldDeclBuilder(
+            tableRecordTypeName,
+            getRelFieldInvocation(recordBuilderFnName),
+            isSingle,
+          ),
+          scalarFieldDeclBuilder(scalarDef, getFieldInvocation, rawRecordVarName, false),
         ),
-        scalarFieldDeclBuilder(scalarDef, getFieldInvocation, rawRecordVarName, false),
+        scalarDef,
       )
     }
   }
+  let (typeOfTableField, tableFieldBuilderInvocation) = tableFieldDeclBuilder(
+    scalarDef,
+    getFieldInvocation,
+    parentRecordTypeName,
+  )
+
   {
     recordVarName: fieldDef.camelCaseFieldName,
     tableVarName: `${fieldDef.camelCaseFieldName}Field`,
     recordFieldAccessorStructureType: recordFieldAccessorStructureType,
     recordFieldAccessorBuilderInvocation: recordFieldAccessorBuilderInvocation,
-    typeOfTableField: `tableSchemaField<${parentRecordTypeName}>`,
-    tableFieldBuilderInvocation: `{
-      sortAsc: ${getFieldInvocation}.sortAsc,
-      sortDesc: ${getFieldInvocation}.sortDesc,
-    }`,
+    typeOfTableField: typeOfTableField,
+    tableFieldBuilderInvocation: tableFieldBuilderInvocation,
   }
 }
 

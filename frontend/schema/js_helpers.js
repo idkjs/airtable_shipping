@@ -87,7 +87,7 @@ function selectRecordsFromTableOrView (tableOrView, fetchfields, sortsArr) {
   })
 }
 
-function buildUpdateFieldObject (arrTuple) {
+function buildAirtableObjectMap (arrTuple) {
   let obj = {}
   arrTuple.forEach(el => (obj[el[0].id] = el[1]))
   console.log(obj)
@@ -102,5 +102,5 @@ exports.prepIntAsBool = prepIntAsBool
 exports.prepMomentOption = prepMomentOption
 exports.prepRelFieldQueryResult = prepRelFieldQueryResult
 exports.selectRecordsFromTableOrView = selectRecordsFromTableOrView
-exports.buildUpdateFieldObject = buildUpdateFieldObject
+exports.buildAirtableObjectMap = buildAirtableObjectMap
 exports.moment = moment

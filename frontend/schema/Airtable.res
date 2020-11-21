@@ -6,7 +6,8 @@ type airtableRawField = {
   _type: string,
 }
 
-type airtableUpdateFieldDetails
+type airtableObjectMap
+type airtableObjectMapComponent
 
 type airtableRawView
 type airtableRawTable = {primaryField: airtableRawField}
@@ -44,7 +45,7 @@ external format: (airtableMoment, unit) => string = "format"
 external updateRecordAsync: (
   airtableRawTable,
   airtableRawRecord,
-  airtableUpdateFieldDetails,
+  airtableObjectMap,
 ) => Js.Promise.t<unit> = "updateRecordAsync"
 
 @bs.module("@airtable/blocks/ui")
@@ -96,8 +97,15 @@ external getViewRecordsQueryResult: (
   array<airtableRawSortParam>,
 ) => airtableRawRecordQueryResult = "selectRecordsFromTableOrView"
 
+// from https://rescript-lang.org/docs/manual/latest/interop-cheatsheet#dangerous-type-cast
+// generally this is dangerous
+// but we want object maps to be polymorphic in a way that would be a PITA here
+// so we throw away whatever the fuck the type is in the second of the tuple
+external buildObjectMapComponent: ((airtableRawField, _)) => airtableObjectMapComponent =
+  "%identity"
+
 @bs.module("./js_helpers")
-external buildUpdateFieldObject: array<(airtableRawField, _)> => airtableUpdateFieldDetails =
-  "buildUpdateFieldObject"
+external buildAirtableObjectMap: array<airtableObjectMapComponent> => airtableObjectMap =
+  "buildAirtableObjectMap"
 @bs.module("./js_helpers")
 external nowMoment: unit => airtableMoment = "moment"

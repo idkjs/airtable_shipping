@@ -38,37 +38,6 @@ and airtableFieldDef = {
 }
 
 /**
-GENERATED SCHEMA PROPERTIES
-GENERATED SCHEMA PROPERTIES
-*/
-type recordSortParam<'recordT> = airtableRawSortParam
-type tableSchemaField<'recordT> = {
-  sortAsc: recordSortParam<'recordT>,
-  sortDesc: recordSortParam<'recordT>,
-}
-type readOnlyScalarRecordField<'t> = {
-  read: unit => 't,
-  render: unit => React.element,
-}
-type readWriteScalarRecordField<'t> = {
-  read: unit => 't,
-  // don't need it yet
-  //writeAsync: 't => Js.Promise.t<unit>,
-  updateAsync: 't => Js.Promise.t<unit>,
-  render: unit => React.element,
-}
-type singleRelField<'relT> = {
-  getRecord: unit => option<'relT>,
-  useRecord: unit => option<'relT>,
-}
-type multipleRelField<'relT> = {
-  getRecords: array<recordSortParam<'relT>> => array<'relT>,
-  useRecords: array<recordSortParam<'relT>> => array<'relT>,
-  getRecordById: string => option<'relT>,
-  useRecordById: string => option<'relT>,
-}
-
-/**
 SCHEMA GENERATION DEFINITIONS
 SCHEMA GENERATION DEFINITIONS
 You can actually change a lot about the core workings of the 
@@ -182,6 +151,18 @@ let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (
   useRecordById: p => orig.useRecordById(p)->Option.map(map),
 }
 
+type recordSortParam<'recordT> = airtableRawSortParam
+type singleRelField<'relT> = {
+  getRecord: unit => option<'relT>,
+  useRecord: unit => option<'relT>,
+}
+type multipleRelField<'relT> = {
+  getRecords: array<recordSortParam<'relT>> => array<'relT>,
+  useRecords: array<recordSortParam<'relT>> => array<'relT>,
+  getRecordById: string => option<'relT>,
+  useRecordById: string => option<'relT>,
+}
+
 let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelField<'relT> = vgq => {
   getRecords: vgq.getRecords,
   useRecords: vgq.useRecords,
@@ -191,6 +172,26 @@ let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelField<'relT> =
 let asSingleRelField: veryGenericQueryable<'relT> => singleRelField<'relT> = vgq => {
   getRecord: vgq.getRecord,
   useRecord: vgq.useRecord,
+}
+
+type genericTableSchemaField<'scalarT> = {
+  sortAsc: airtableRawSortParam,
+  sortDesc: airtableRawSortParam,
+  buildObjectMapComponent: 'scalarT => airtableObjectMapComponent,
+}
+type tableSchemaField<'recordT, 'scalarT> = genericTableSchemaField<'scalarT>
+
+type readOnlyScalarRecordField<'t> = {
+  read: unit => 't,
+  render: unit => React.element,
+}
+
+type readWriteScalarRecordField<'t> = {
+  read: unit => 't,
+  // don't need it yet
+  //writeAsync: 't => Js.Promise.t<unit>,
+  updateAsync: 't => Js.Promise.t<unit>,
+  render: unit => React.element,
 }
 
 /*
@@ -204,13 +205,12 @@ type rec scalarishField = {
   bool: scalarishRecordFieldBuilder<bool>,
   intBool: scalarishRecordFieldBuilder<bool>,
   momentOption: scalarishRecordFieldBuilder<option<airtableMoment>>,
-  sortAsc: airtableRawSortParam,
-  sortDesc: airtableRawSortParam,
 }
 and scalarishRecordFieldBuilder<'scalarish> = {
   // utility type for scalarish
   buildReadOnly: airtableRawRecord => readOnlyScalarRecordField<'scalarish>,
   buildReadWrite: airtableRawRecord => readWriteScalarRecordField<'scalarish>,
+  tableSchemaField: genericTableSchemaField<'scalarish>,
 }
 
 // fulfiil the scalarishRecordFieldBuilder interface when
@@ -221,16 +221,25 @@ let scalarishBuilder: (
   (airtableRawRecord, airtableRawField) => 'scalarish,
   'scalarish => _,
 ) => scalarishRecordFieldBuilder<'scalarish> = (rawTable, rawField, readPrepFn, writePrepFn) => {
-  buildReadOnly: rawRec => {
-    read: () => readPrepFn(rawRec, rawField),
-    render: () => <CellRenderer field=rawField record=rawRec />,
-  },
-  buildReadWrite: rawRec => {
-    read: () => readPrepFn(rawRec, rawField),
-    updateAsync: value =>
-      updateRecordAsync(rawTable, rawRec, buildUpdateFieldObject([(rawField, writePrepFn(value))])),
-    render: () => <CellRenderer field=rawField record=rawRec />,
-  },
+  let bOMC: 'scalarish => airtableObjectMapComponent = s =>
+    buildObjectMapComponent((rawField, writePrepFn(s)))
+  {
+    buildReadOnly: rawRec => {
+      read: () => readPrepFn(rawRec, rawField),
+      render: () => <CellRenderer field=rawField record=rawRec />,
+    },
+    buildReadWrite: rawRec => {
+      read: () => readPrepFn(rawRec, rawField),
+      updateAsync: value =>
+        updateRecordAsync(rawTable, rawRec, buildAirtableObjectMap([bOMC(value)])),
+      render: () => <CellRenderer field=rawField record=rawRec />,
+    },
+    tableSchemaField: {
+      sortAsc: {field: rawField, direction: `asc`},
+      sortDesc: {field: rawField, direction: `desc`},
+      buildObjectMapComponent: bOMC,
+    },
+  }
 }
 
 let buildScalarishField: (airtableRawTable, airtableRawField) => scalarishField = (
@@ -248,6 +257,4 @@ let buildScalarishField: (airtableRawTable, airtableRawField) => scalarishField 
   momentOption: scalarishBuilder(rawTable, rawField, getMomentOption, mopt =>
     mopt->Option.mapWithDefault("", moment => moment->format())
   ),
-  sortAsc: {field: rawField, direction: `asc`},
-  sortDesc: {field: rawField, direction: `desc`},
 }
