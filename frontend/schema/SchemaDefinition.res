@@ -184,31 +184,28 @@ type genericTableSchemaField<'scalarT> = {
   buildObjectMapComponent: 'scalarT => airtableObjectMapComponent,
 }
 type tableSchemaField<'recordT, 'scalarT> = genericTableSchemaField<'scalarT>
-type genericTableCRUDOperations<'recordT> = {
+type tableRecordOperations<'recordT> = {
   create: array<recordCreateUpdateParam<'recordT>> => Js.Promise.t<recordId<'recordT>>,
   update: ('recordT, array<recordCreateUpdateParam<'recordT>>) => Js.Promise.t<unit>,
 }
-let buildGenericTableCRUDOperations: airtableRawTable => genericTableCRUDOperations<
-  'recordT,
-> = rawTable => {
+let buildTableRecordOperations: airtableRawTable => tableRecordOperations<'recordT> = rawTable => {
   create: arr => rawTable->createRecordAsync(buildAirtableObjectMap(arr)),
   update: (reco, arr) => rawTable->updateRecordAsync(reco, buildAirtableObjectMap(arr)),
 }
-external mapGenericTableCRUDOperations: genericTableCRUDOperations<
-  'a,
-> => genericTableCRUDOperations<'b> = "%identity"
+external mapTableRecordOperations: tableRecordOperations<'a> => tableRecordOperations<'b> =
+  "%identity"
 /*
-let mapGenericTableCRUDOperations: (
-  genericTableCRUDOperations<'a>,
+let mapTableRecordOperations: (
+  tableRecordOperations<'a>,
   'a => 'b,
-) => genericTableCRUDOperations<'b> = (gtco, wrp) => {
+) => tableRecordOperations<'b> = (gtco, wrp) => {
   create: gtco.create,
   update: gtco.update,
 }*/
 
 type genericTable<'recordT> = {
   vgq: veryGenericQueryable<'recordT>,
-  crud: genericTableCRUDOperations<'recordT>,
+  crud: tableRecordOperations<'recordT>,
 }
 
 type readOnlyScalarRecordField<'t> = {

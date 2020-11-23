@@ -78,7 +78,7 @@ and boxLineRecord = {
 }
 and skuOrderTrackingTable = {
   rel: multipleRelField<skuOrderTrackingRecord>,
-  crud: genericTableCRUDOperations<skuOrderTrackingRecord>,
+  crud: tableRecordOperations<skuOrderTrackingRecord>,
   hasTrackingNumbersView: multipleRelField<skuOrderTrackingRecord>,
   trackingNumberField: tableSchemaField<skuOrderTrackingRecord, string>,
   skuOrdersField: tableSchemaField<skuOrderTrackingRecord, string>,
@@ -89,7 +89,7 @@ and skuOrderTrackingTable = {
 }
 and skuOrderTable = {
   rel: multipleRelField<skuOrderRecord>,
-  crud: genericTableCRUDOperations<skuOrderRecord>,
+  crud: tableRecordOperations<skuOrderRecord>,
   orderNameField: tableSchemaField<skuOrderRecord, string>,
   trackingRecordField: tableSchemaField<skuOrderRecord, string>,
   skuOrderSkuField: tableSchemaField<skuOrderRecord, string>,
@@ -105,7 +105,7 @@ and skuOrderTable = {
 }
 and skuTable = {
   rel: multipleRelField<skuRecord>,
-  crud: genericTableCRUDOperations<skuRecord>,
+  crud: tableRecordOperations<skuRecord>,
   skuNameField: tableSchemaField<skuRecord, string>,
   serialNumberField: tableSchemaField<skuRecord, string>,
   isSerialRequiredField: tableSchemaField<skuRecord, bool>,
@@ -113,7 +113,7 @@ and skuTable = {
 }
 and boxDestinationTable = {
   rel: multipleRelField<boxDestinationRecord>,
-  crud: genericTableCRUDOperations<boxDestinationRecord>,
+  crud: tableRecordOperations<boxDestinationRecord>,
   destNameField: tableSchemaField<boxDestinationRecord, string>,
   boxesField: tableSchemaField<boxDestinationRecord, string>,
   currentMaximalBoxNumberField: tableSchemaField<boxDestinationRecord, int>,
@@ -123,7 +123,7 @@ and boxDestinationTable = {
 }
 and boxTable = {
   rel: multipleRelField<boxRecord>,
-  crud: genericTableCRUDOperations<boxRecord>,
+  crud: tableRecordOperations<boxRecord>,
   boxNameField: tableSchemaField<boxRecord, string>,
   boxLinesField: tableSchemaField<boxRecord, string>,
   boxDestField: tableSchemaField<boxRecord, string>,
@@ -135,7 +135,7 @@ and boxTable = {
 }
 and boxLineTable = {
   rel: multipleRelField<boxLineRecord>,
-  crud: genericTableCRUDOperations<boxLineRecord>,
+  crud: tableRecordOperations<boxLineRecord>,
   nameField: tableSchemaField<boxLineRecord, string>,
   boxRecordField: tableSchemaField<boxLineRecord, string>,
   boxLineSkuField: tableSchemaField<boxLineRecord, string>,
@@ -275,7 +275,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
         rel: asMultipleRelField(
           getQueryableTableOrView(gschem, "skuOrderTracking", skuOrderTrackingRecordBuilder),
         ),
-        crud: getTableCrudOperations(gschem, "skuOrderTracking"),
+        crud: getTableRecordOperations(gschem, "skuOrderTracking"),
         hasTrackingNumbersView: asMultipleRelField(
           getQueryableTableOrView(gschem, "hasTrackingNumbersView", skuOrderTrackingRecordBuilder),
         ),
@@ -288,7 +288,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
       },
       skuOrder: {
         rel: asMultipleRelField(getQueryableTableOrView(gschem, "skuOrder", skuOrderRecordBuilder)),
-        crud: getTableCrudOperations(gschem, "skuOrder"),
+        crud: getTableRecordOperations(gschem, "skuOrder"),
         orderNameField: getField(gschem, "orderName").string.tableSchemaField,
         trackingRecordField: getField(gschem, "trackingRecord").string.tableSchemaField,
         skuOrderSkuField: getField(gschem, "skuOrderSku").string.tableSchemaField,
@@ -307,7 +307,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
       },
       sku: {
         rel: asMultipleRelField(getQueryableTableOrView(gschem, "sku", skuRecordBuilder)),
-        crud: getTableCrudOperations(gschem, "sku"),
+        crud: getTableRecordOperations(gschem, "sku"),
         skuNameField: getField(gschem, "skuName").string.tableSchemaField,
         serialNumberField: getField(gschem, "serialNumber").string.tableSchemaField,
         isSerialRequiredField: getField(gschem, "isSerialRequired").intBool.tableSchemaField,
@@ -317,7 +317,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
         rel: asMultipleRelField(
           getQueryableTableOrView(gschem, "boxDestination", boxDestinationRecordBuilder),
         ),
-        crud: getTableCrudOperations(gschem, "boxDestination"),
+        crud: getTableRecordOperations(gschem, "boxDestination"),
         destNameField: getField(gschem, "destName").string.tableSchemaField,
         boxesField: getField(gschem, "boxes").string.tableSchemaField,
         currentMaximalBoxNumberField: getField(
@@ -330,7 +330,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
       },
       box: {
         rel: asMultipleRelField(getQueryableTableOrView(gschem, "box", boxRecordBuilder)),
-        crud: getTableCrudOperations(gschem, "box"),
+        crud: getTableRecordOperations(gschem, "box"),
         boxNameField: getField(gschem, "boxName").string.tableSchemaField,
         boxLinesField: getField(gschem, "boxLines").string.tableSchemaField,
         boxDestField: getField(gschem, "boxDest").string.tableSchemaField,
@@ -342,7 +342,7 @@ let buildSchema: array<airtableTableDef> => schema = tdefs => {
       },
       boxLine: {
         rel: asMultipleRelField(getQueryableTableOrView(gschem, "boxLine", boxLineRecordBuilder)),
-        crud: getTableCrudOperations(gschem, "boxLine"),
+        crud: getTableRecordOperations(gschem, "boxLine"),
         nameField: getField(gschem, "name").string.tableSchemaField,
         boxRecordField: getField(gschem, "boxRecord").string.tableSchemaField,
         boxLineSkuField: getField(gschem, "boxLineSku").string.tableSchemaField,

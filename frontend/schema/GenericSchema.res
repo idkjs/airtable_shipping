@@ -116,7 +116,7 @@ let dereferenceGenericSchema: (
         getTable(base, tdef.resolutionMethod)->Result.flatMap(table => Ok(
           getAllFields => {
             vgq: buildVGQ(getTableRecordsQueryResult(table, getAllFields(tdef.camelCaseTableName))),
-            crud: buildGenericTableCRUDOperations(table),
+            crud: buildTableRecordOperations(table),
           },
         )),
       )
@@ -133,7 +133,7 @@ let dereferenceGenericSchema: (
                 vgq: buildVGQ(
                   getViewRecordsQueryResult(view, getAllFields(tdef.camelCaseTableName)),
                 ),
-                crud: buildGenericTableCRUDOperations(table),
+                crud: buildTableRecordOperations(table),
               },
             )
           }),
@@ -266,13 +266,13 @@ let getQueryableTableOrView: (
   tbish.vgq->mapVGQ(wrap(gschem))
 }
 
-let getTableCrudOperations: (genericSchema, string) => genericTableCRUDOperations<'recordT> = (
+let getTableRecordOperations: (genericSchema, string) => tableRecordOperations<'recordT> = (
   gschem,
   keystr,
 ) => {
   let tbish = gschem.tableish->Map.String.getExn(keystr)
   // parameterize with a way to get all fields
-  tbish.crud->mapGenericTableCRUDOperations
+  tbish.crud->mapTableRecordOperations
 }
 
 let getQueryableRelField: (
@@ -373,13 +373,13 @@ let tableFieldDeclBuilder: (airtableScalarValueDef, string, string) => (string, 
   )
 }
 
-let tableCrudDeclBuilder: (string, string, string) => (string, string) = (
+let tableRecordOpsDeclBuilder: (string, string, string) => (string, string) = (
   recordTypeName,
   genericSchemaVarName,
   tableCamelName,
 ) => (
-  `genericTableCRUDOperations<${recordTypeName}>`,
-  `getTableCrudOperations(${genericSchemaVarName},"${tableCamelName}")`,
+  `tableRecordOperations<${recordTypeName}>`,
+  `getTableRecordOperations(${genericSchemaVarName},"${tableCamelName}")`,
 )
 
 type relRecordField<'relFieldT, 'scalarFieldT> = {
@@ -509,7 +509,7 @@ let getSchemaMergeVars: array<airtableTableDef> => schemaMergeVars = tableDefs =
         false,
       )
 
-      let (tableCrudType, tableCrudDeclaration) = tableCrudDeclBuilder(
+      let (tableCrudType, tableCrudDeclaration) = tableRecordOpsDeclBuilder(
         tableRecordTypeName,
         genericSchemaVarName,
         tdef.camelCaseTableName,
