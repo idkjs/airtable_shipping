@@ -28,6 +28,12 @@ let make = (
   </Dialog>
 }
 
+module VSpace = {
+  @react.component
+  let make = (~px: int) =>
+    <div style={ReactDOM.Style.make(~paddingBottom={`${px->Int.toString}px`}, ())} />
+}
+
 module Subheading = {
   @react.component
   let make = (~children: React.element) =>
@@ -65,4 +71,10 @@ module PrimarySaveButton = {
   @react.component
   let make = (~onClick: unit => _, ~children: React.element) =>
     <Button onClick icon="book" size="large" variant="primary"> {children} </Button>
+}
+
+module SecondarySaveButton = {
+  @react.component
+  let make = (~onClick: unit => _, ~children: React.element) =>
+    <Button onClick icon="book" size="large" variant="default"> {children} </Button>
 }

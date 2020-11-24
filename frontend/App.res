@@ -18,12 +18,20 @@ let make = () => {
       // get in there and USE everything in a big mess of hooks
       // they should all be loaded up and ready to go when i want to GET
       // them later
-      let _ =
-        sot.skuOrders.rel.useRecords([])->Array.map(so =>
-          so.skuOrderBoxDest.rel.useRecord()->Option.map(bd =>
-            bd.boxes.rel.useRecords([])->Array.map(bx => bx.boxLines.rel.useRecords([]))
+      // we need to know HOW they are used in ohter functions (e.g. sorts)
+      // this could be put into a function at some point
+      let _ = sot.skuOrders.rel.useRecords([])->Array.map(so => {
+        // we use the sku record from here
+        let _ = so.skuOrderSku.rel.useRecord()
+        // we use the parent from here
+        let _ = so.trackingRecord.rel.useRecord()
+
+        so.skuOrderBoxDest.rel.useRecord()->Option.map(bd =>
+          bd.boxes.rel.useRecords([schema.box.boxNumberOnlyField.sortDesc])->Array.map(bx =>
+            bx.boxLines.rel.useRecords([])
           )
         )
+      })
       sot
     })
     ->Array.keep(record => {
@@ -41,7 +49,7 @@ let make = () => {
       ->Array.concatMany
     : []
 
-  Js.Console.log(skuOrderRecords)
+  //Js.Console.log(skuOrderRecords)
 
   <div style={ReactDOM.Style.make(~padding="8px", ())}>
     <SearchBox state dispatch />

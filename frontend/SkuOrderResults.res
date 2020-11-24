@@ -2,7 +2,7 @@ open Belt
 open Util
 open AirtableUI
 open Schema
-open SkuOrderDialog
+open SkuOrderDialogState
 
 @react.component
 let make = (
@@ -11,6 +11,9 @@ let make = (
   ~schema: Schema.schema,
   ~skuOrderRecords: array<skuOrderRecord>,
 ) => {
+  // so this is a hook, remember
+  let focusSkuOrderOpt = schema.skuOrder.rel.useRecordById(state.focusOnSkuOrderRecordId)
+
   <div>
     <Heading> {React.string(`SKU Orders`)} </Heading>
     <Table
@@ -59,10 +62,13 @@ let make = (
         },
         {
           header: `➡️`,
-          accessor: so => parseRecordState(so, state, dispatch).activationButton,
+          accessor: so => parseRecordState(schema, so, state, dispatch).activationButton,
           tdStyle: ReactDOM.Style.make(),
         },
       ]
     />
+    {focusSkuOrderOpt->Option.mapWithDefault(React.string(""), record =>
+      parseRecordState(schema, record, state, dispatch).dialog
+    )}
   </div>
 }

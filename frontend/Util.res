@@ -1,6 +1,7 @@
 open Belt
 
 let s = React.string
+let itos = i => i->Int.toString->React.string
 
 let joinWith = Js.Array.joinWith
 

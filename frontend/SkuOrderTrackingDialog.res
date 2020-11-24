@@ -34,7 +34,7 @@ let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTr
     saveWarehouseNotesAndClose()
   }
 
-  let warehouseNotesOnChange = dispatch->mapEvent(v => UpdateWarehouseNotes(v))
+  let warehouseNotesOnChange = dispatch->mapEvent(v => UpdateWarehouseNotes(v), identity)
 
   let cancelAndDontSaveButton =
     <CancelButton onClick=dialogClose> {s(`Don't save my changes`)} </CancelButton>
