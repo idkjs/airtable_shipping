@@ -73,6 +73,8 @@ external getStringOption: (airtableRawRecord, airtableRawField) => option<string
 @bs.module("./js_helpers")
 external getInt: (airtableRawRecord, airtableRawField) => int = "prepInt"
 @bs.module("./js_helpers")
+external getIntOption: (airtableRawRecord, airtableRawField) => option<int> = "prepIntOption"
+@bs.module("./js_helpers")
 external getBool: (airtableRawRecord, airtableRawField) => bool = "prepBool"
 @bs.module("./js_helpers")
 external getIntAsBool: (airtableRawRecord, airtableRawField) => bool = "prepIntAsBool"
@@ -105,6 +107,9 @@ external getViewRecordsQueryResult: (
 // so we throw away whatever the fuck the type is in the second of the tuple
 external buildObjectMapComponent: ((airtableRawField, _)) => airtableObjectMapComponent =
   "%identity"
+
+// look i want typing info
+@bs.module external var_dump: _ => unit = "locutus/php/var/var_dump"
 
 @bs.module("./js_helpers")
 external buildAirtableObjectMap: array<airtableObjectMapComponent> => airtableObjectMap =

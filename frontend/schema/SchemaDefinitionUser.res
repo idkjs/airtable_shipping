@@ -75,7 +75,7 @@ and skuOrdersTable: airtableTableDef = {
     {
       resolutionMethod: ByName(`Quantity Received`),
       camelCaseFieldName: `quantityReceived`,
-      fieldValueType: ScalarRW(Int),
+      fieldValueType: ScalarRW(IntOption),
     },
     {
       resolutionMethod: ByName(`gtg_packed_qty`),

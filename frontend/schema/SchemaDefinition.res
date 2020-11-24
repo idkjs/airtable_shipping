@@ -20,6 +20,7 @@ and airtableScalarValueDef =
   | BareString
   | StringOption
   | Int
+  | IntOption
   | Bool
   | IntAsBool
   | MomentOption
@@ -65,6 +66,7 @@ let allowedAirtableFieldTypes: airtableFieldValueType => array<string> = fvt => 
     | BareString => stringy
     | StringOption => stringy
     | Int => [`number`]
+    | IntOption => [`number`]
     | Bool => [`checkbox`]
     | IntAsBool => [`number`]
     | MomentOption => [`dateTime`]
@@ -91,6 +93,10 @@ let getScalarTypeContext: airtableScalarValueDef => scalarTypeContext = atsv => 
   | Int => {
       reasonReadReturnTypeName: `int`,
       scalarishFieldBuilderAccessorName: `int`,
+    }
+  | IntOption => {
+      reasonReadReturnTypeName: `option<int>`,
+      scalarishFieldBuilderAccessorName: `intOpt`,
     }
   | Bool => {
       reasonReadReturnTypeName: `bool`,
@@ -229,6 +235,7 @@ type rec scalarishField = {
   string: scalarishRecordFieldBuilder<string>,
   stringOpt: scalarishRecordFieldBuilder<option<string>>,
   int: scalarishRecordFieldBuilder<int>,
+  intOpt: scalarishRecordFieldBuilder<option<int>>,
   bool: scalarishRecordFieldBuilder<bool>,
   intBool: scalarishRecordFieldBuilder<bool>,
   momentOption: scalarishRecordFieldBuilder<option<airtableMoment>>,
@@ -275,10 +282,15 @@ let buildScalarishField: (airtableRawTable, airtableRawField) => scalarishField 
 ) => {
   rawField: rawField,
   string: scalarishBuilder(rawTable, rawField, getString, identity),
-  stringOpt: scalarishBuilder(rawTable, rawField, getStringOption, stropt =>
-    stropt->Option.mapWithDefault("", identity)
+  stringOpt: scalarishBuilder(
+    rawTable,
+    rawField,
+    getStringOption,
+    Js.Nullable.fromOption,
+    //stropt =>     stropt->Option.mapWithDefault("", identity)
   ),
   int: scalarishBuilder(rawTable, rawField, getInt, identity),
+  intOpt: scalarishBuilder(rawTable, rawField, getIntOption, Js.Nullable.fromOption),
   bool: scalarishBuilder(rawTable, rawField, getBool, identity),
   intBool: scalarishBuilder(rawTable, rawField, getIntAsBool, b => b ? 1 : 0),
   momentOption: scalarishBuilder(rawTable, rawField, getMomentOption, mopt =>

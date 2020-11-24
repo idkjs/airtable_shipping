@@ -2,10 +2,10 @@
 # yarn lockfile v1
 
 
-"@airtable/blocks@1.2.0":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@airtable/blocks/-/blocks-1.2.0.tgz#d9d6283b8cb699de11b3de7968bb94e75a068238"
-  integrity sha512-V8dmTIJrkvRSKOeT/fozwk9/xCZBo11d5Yln+5j09hZcOYtHXsyZV7cyuahRf27cJ5DtSdfXbpt9lFtsVugtQw==
+"@airtable/blocks@1.2.1":
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/@airtable/blocks/-/blocks-1.2.1.tgz#6b165c42f34571e0a7e7a70f3951ae3871395af1"
+  integrity sha512-xTcSieixW4EP7mgD97/yyqjWSbPd1jTaSsBZZ6WnO9KIZWb9LhtMn1u2w0KKd6ZxsnF6T2SUsPrL5MDNyjs8tw==
   dependencies:
     "@airtable/eslint-plugin-blocks" "^1.0.2"
     "@babel/runtime" "^7.7.6"
@@ -327,10 +327,10 @@ brace-expansion@^1.1.7:
     balanced-match "^1.0.0"
     concat-map "0.0.1"
 
-bs-platform@8.3.2:
-  version "8.3.2"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-8.3.2.tgz#c307f1cc2d2397c3d088c7f3b62e9f493283cdcf"
-  integrity sha512-iOTi5JIlNPoCPq31NS9ET79FLyCpwTL2JZbgHz35LzY9Bch1iDtbBR3FVGhRbjphxelAP4fLlFONfUNp5Y3a5g==
+bs-platform@8.3.3:
+  version "8.3.3"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-8.3.3.tgz#68e3796ad0607c55da0f45fe14c0ce0aaf69682c"
+  integrity sha512-ayS5wdvrOX6PxU2wX7O2rLllzsQDzmGq582NNDFwfM6b9HQu7ki242Pc46o2/CnGHHumKVarpX0IZzjC2Llgcg==
 
 call-bind@^1.0.0:
   version "1.0.0"
@@ -563,6 +563,11 @@ es-to-primitive@^1.2.1:
     is-callable "^1.1.4"
     is-date-object "^1.0.1"
     is-symbol "^1.0.2"
+
+es6-promise@^4.2.5:
+  version "4.2.8"
+  resolved "https://registry.yarnpkg.com/es6-promise/-/es6-promise-4.2.8.tgz#4eb21594c972bc40553d276e510539143db53e0a"
+  integrity sha512-HJDGx5daxeIvxdBxvG2cb9g4tEvwIk3i8+nhX0yGrYmZUzbkdg8QbDevheDB8gd0//uPj4c1EQua8Q+MViT0/w==
 
 escape-string-regexp@^1.0.5:
   version "1.0.5"
@@ -1021,6 +1026,13 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.yarnpkg.com/lines-and-columns/-/lines-and-columns-1.1.6.tgz#1c00c743b433cd0a4e80758f7b64a57440d9ff00"
   integrity sha1-HADHQ7QzzQpOgHWPe2SldEDZ/wA=
 
+locutus@^2.0.14:
+  version "2.0.14"
+  resolved "https://registry.yarnpkg.com/locutus/-/locutus-2.0.14.tgz#53d259ac7200b0621ed4e5604b6c49993415a455"
+  integrity sha512-0H1o1iHNEp3kJ5rW57bT/CAP5g6Qm0Zd817Wcx2+rOMTYyIJoc482Ja1v9dB6IUjwvWKcBNdYi7x2lRXtlJ3bA==
+  dependencies:
+    es6-promise "^4.2.5"
+
 lodash.omit@^4.5.0:
   version "4.5.0"
   resolved "https://registry.yarnpkg.com/lodash.omit/-/lodash.omit-4.5.0.tgz#6eb19ae5a1ee1dd9df0b969e66ce0b7fa30b5e60"
@@ -1261,14 +1273,13 @@ react-window@1.8.5:
     "@babel/runtime" "^7.0.0"
     memoize-one ">=3.1.1 <6"
 
-react@^16.13.0:
-  version "16.14.0"
-  resolved "https://registry.yarnpkg.com/react/-/react-16.14.0.tgz#94d776ddd0aaa37da3eda8fc5b6b18a4c9a3114d"
-  integrity sha512-0X2CImDkJGApiAlcf0ODKIneSwBPhqJawOa5wCtKbu7ZECrmS26NvtSILynQ66cgkT/RJ4LidJOc3bUESwmU8g==
+react@^17.0.1:
+  version "17.0.1"
+  resolved "https://registry.yarnpkg.com/react/-/react-17.0.1.tgz#6e0600416bd57574e3f86d92edba3d9008726127"
+  integrity sha512-lG9c9UuMHdcAexXtigOZLX8exLWkW0Ku29qPRU8uhF2R9BN96dLCt0psvzPLlHc5OWkgymP3qwTRgbnw5BKx3w==
   dependencies:
     loose-envify "^1.1.0"
     object-assign "^4.1.1"
-    prop-types "^15.6.2"
 
 reason-react@0.9.1:
   version "0.9.1"

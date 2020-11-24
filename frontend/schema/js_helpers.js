@@ -16,11 +16,20 @@ function prepStringOption (record, field) {
   return undefined
 }
 
-function prepInt (record, field) {
+function prepIntOption (record, field) {
   let v = parseInt(record.getCellValueAsString(field))
   // we go the long way here because formula fields can return a buncha shit
 
   if (Number.isNaN(v)) {
+    return undefined
+  }
+
+  return v
+}
+function prepInt (record, field) {
+  let v = prepIntOption(record, field)
+
+  if (v === undefined) {
     console.error(
       `requested field cannot be parsed as int, returning 0 [fieldname:${field.name},recordname:${record.name},val: ${v}]`
     )
@@ -90,13 +99,14 @@ function selectRecordsFromTableOrView (tableOrView, fetchfields, sortsArr) {
 function buildAirtableObjectMap (arrTuple) {
   let obj = {}
   arrTuple.forEach(el => (obj[el[0].id] = el[1]))
-  console.log(obj)
+  console.log(arrTuple, obj)
   return obj
 }
 
 exports.prepBareString = prepBareString
 exports.prepStringOption = prepStringOption
 exports.prepInt = prepInt
+exports.prepIntOption = prepIntOption
 exports.prepBool = prepBool
 exports.prepIntAsBool = prepIntAsBool
 exports.prepMomentOption = prepMomentOption
