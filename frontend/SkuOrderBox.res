@@ -27,14 +27,13 @@ let findPotentialBoxes: (schema, boxDestinationRecord) => result<potentialBoxes,
   bdr,
 ) => {
   let boxes = bdr.boxes.rel.getRecords([schema.box.boxNumberOnlyField.sortDesc])
-  let boxOffset = bdr.boxOffset.read()
 
   let presentBoxNumbers = Set.Int.fromArray(boxes->Array.map(box => box.boxNumberOnly.read()))
   let expectedBoxNumbers =
     presentBoxNumbers->Set.Int.size > 0
       ? Set.Int.fromArray(
           // note that we need to have length for this inclusive range to be valid here
-          Array.range(boxOffset + 1, boxOffset + boxes->Array.length),
+          Array.range(1, boxes->Array.length),
         )
       : Set.Int.empty
 

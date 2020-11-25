@@ -64,17 +64,17 @@ module WarningButton = {
 
 module PrimaryActionButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element) =>
-    <Button onClick icon="bolt" size="large" variant="primary"> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element) =>
+    <Button onClick ?disabled icon="bolt" size="large" variant="primary"> {children} </Button>
 }
 module PrimarySaveButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element) =>
-    <Button onClick icon="book" size="large" variant="primary"> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element) =>
+    <Button onClick ?disabled icon="book" size="large" variant="primary"> {children} </Button>
 }
 
 module SecondarySaveButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element) =>
-    <Button onClick icon="book" size="large" variant="default"> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element) =>
+    <Button onClick ?disabled icon="book" size="large" variant="default"> {children} </Button>
 }

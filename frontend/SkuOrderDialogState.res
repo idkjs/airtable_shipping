@@ -28,7 +28,8 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
     // they look like SKUNAME-XXXX or XXXY or somethign
     sku.skuName.read()->sliceToEnd(~from=-5)->startsWith("-X")
 
-  let serialIsEntered: skuRecord => bool = sku => sku.serialNumber.read()->length > 6
+  let serialNumberLooksGood = str => str->trim->length > 6
+  let serialIsEntered: skuRecord => bool = sku => sku.serialNumber.read()->serialNumberLooksGood
 
   let nameIsSerialized: skuRecord => bool = sku =>
     // if the last 4 match
@@ -46,28 +47,31 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         tracking: parent,
         dispatch: dispatch,
         closeCancel: () => UnfocusOrderRecord->dispatch,
-        updateQtyReceivedFromState: BlindFieldUpdate(
+        persistQtyReceivedFromState: BlindFieldUpdate(
           () => skuOrder.quantityReceived.updateAsync(state.skuQuantityReceived),
         ),
-        updateReceivingNotesFromState: BlindFieldUpdate(
+        persistQtyReceivedOfOne: BlindFieldUpdate(
+          () => skuOrder.quantityReceived.updateAsync(Some(1)),
+        ),
+        persistReceivingNotesFromState: BlindFieldUpdate(
           () => skuOrder.receivingNotes.updateAsync(state.skuReceivingNotes),
         ),
-        updateSerialNumberFromState: BlindFieldUpdate(
-          () => sku.serialNumber.updateAsync(state.skuSerial),
+        persistIsReceivedCheckbox: BlindFieldUpdate(
+          () => skuOrder.skuOrderIsReceived.updateAsync(true),
         ),
-        markReceivedCheckbox: BlindFieldUpdate(() => skuOrder.skuOrderIsReceived.updateAsync(true)),
-        serializeSkuName: BlindFieldUpdate(
+        persistSerialNumberAndSerializedSkuNameFromState: BlindFieldUpdate(
           () =>
-            if sku->serialIsEntered {
+            if state.skuSerial->serialNumberLooksGood {
+              let _ = sku.serialNumber.updateAsync(state.skuSerial)
               sku.skuName.updateAsync(
                 // take out the templatized part
                 // put in the end of the serial as entered
                 sku.skuName.read()->slice(~from=0, ~to_=-4) ++
-                  sku.serialNumber.read()->sliceToEnd(~from=-4),
+                  state.skuSerial->sliceToEnd(~from=-4),
               )
             } else {
               Js.Exn.raiseError(
-                `You can't serialize the sku name of something that is missing its sku, my friend`,
+                `You can't serialize the sku name of something that has no serial entered in the state, my friend`,
               )
             },
         ),
@@ -80,6 +84,9 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         )),
         receivingNotes: state.skuReceivingNotes,
         receivingNotesOnChange: dispatch->onChangeHandler(v => UpdateReceivingNotes(v)),
+        serialNumber: state.skuSerial,
+        serialNumberLooksGood: state.skuSerial->serialNumberLooksGood,
+        serialNumberOnChange: dispatch->onChangeHandler(v => UpdateSKUSerial(v)),
       }
 
       switch (
@@ -200,7 +207,8 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
     },
     dialog: switch recordStatus {
     | DataCorruption(msg) => <DataCorruption closeCancel formattedErrorText=msg />
-    | ReceiveQtyOfSku(skuOrderDialogVars) => <ReceiveUnserialedSku dialogVars=skuOrderDialogVars />
+    | ReceiveQtyOfSku(dialogVars) => <ReceiveUnserialedSku dialogVars />
+    | CollectSerialNumberAndReceive1(dialogVars) => <ReceiveSerialedSku dialogVars />
     | _ => <Temp closeCancel />
     },
   }

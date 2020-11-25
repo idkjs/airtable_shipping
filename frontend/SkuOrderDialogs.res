@@ -14,17 +14,20 @@ type skuOrderDialogVars = {
   // actions
   dispatch: action => unit,
   closeCancel: unit => unit,
-  updateQtyReceivedFromState: action,
-  updateReceivingNotesFromState: action,
-  updateSerialNumberFromState: action,
-  markReceivedCheckbox: action,
-  serializeSkuName: action,
   dialogClose: action,
+  persistQtyReceivedFromState: action,
+  persistQtyReceivedOfOne: action,
+  persistReceivingNotesFromState: action,
+  persistIsReceivedCheckbox: action,
+  persistSerialNumberAndSerializedSkuNameFromState: action,
   // display vars
   qtyToReceive: int,
   qtyToReceiveOnChange: ReactEvent.Form.t => unit,
   receivingNotes: string,
   receivingNotesOnChange: ReactEvent.Form.t => unit,
+  serialNumber: string,
+  serialNumberLooksGood: bool,
+  serialNumberOnChange: ReactEvent.Form.t => unit,
 }
 
 module ReceiveUnserialedSku = {
@@ -35,8 +38,8 @@ module ReceiveUnserialedSku = {
       sku,
       closeCancel,
       dispatch,
-      updateQtyReceivedFromState,
-      updateReceivingNotesFromState,
+      persistQtyReceivedFromState,
+      persistReceivingNotesFromState,
       dialogClose,
       tracking,
       qtyToReceive,
@@ -50,18 +53,20 @@ module ReceiveUnserialedSku = {
       actionButtons=[
         <CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>,
         <SecondarySaveButton
+          disabled={qtyToReceive > 0}
           onClick={() =>
             dispatch->multi([
-              updateQtyReceivedFromState,
-              updateReceivingNotesFromState,
+              persistQtyReceivedFromState,
+              persistReceivingNotesFromState,
               dialogClose,
             ])}>
-          {s(`Save and Close`)}
+          {s(qtyToReceive > 0 ? `Save and Close` : `Must Receive > 0`)}
         </SecondarySaveButton>,
         <PrimarySaveButton
+          disabled={qtyToReceive > 0}
           onClick={() =>
-            dispatch->multi([updateQtyReceivedFromState, updateReceivingNotesFromState])}>
-          {s(`Save and Continue`)}
+            dispatch->multi([persistQtyReceivedFromState, persistReceivingNotesFromState])}>
+          {s(qtyToReceive > 0 ? `Save and Continue` : `Must Receive > 0`)}
         </PrimarySaveButton>,
       ]
       closeCancel>
@@ -107,6 +112,72 @@ module ReceiveUnserialedSku = {
         ]
       />
       <VSpace px=40 />
+    </PipelineDialog>
+  }
+}
+
+module ReceiveSerialedSku = {
+  @react.component
+  let make = (~dialogVars: skuOrderDialogVars) => {
+    let {
+      sku,
+      closeCancel,
+      dispatch,
+      persistQtyReceivedOfOne,
+      persistReceivingNotesFromState,
+      serialNumberLooksGood,
+      persistSerialNumberAndSerializedSkuNameFromState,
+      dialogClose,
+      tracking,
+      serialNumber,
+      serialNumberOnChange,
+      receivingNotes,
+      receivingNotesOnChange,
+    } = dialogVars
+    <PipelineDialog
+      header={`Enter Serial Number & QC: ${sku.skuName.read()}`}
+      actionButtons=[
+        <CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>,
+        <SecondarySaveButton
+          disabled={!serialNumberLooksGood}
+          onClick={() =>
+            dispatch->multi([
+              persistSerialNumberAndSerializedSkuNameFromState,
+              persistQtyReceivedOfOne,
+              persistReceivingNotesFromState,
+              dialogClose,
+            ])}>
+          {s(serialNumberLooksGood ? `Save and Close` : `Enter a serial number`)}
+        </SecondarySaveButton>,
+        <PrimarySaveButton
+          disabled={!serialNumberLooksGood}
+          onClick={() =>
+            dispatch->multi([
+              persistSerialNumberAndSerializedSkuNameFromState,
+              persistQtyReceivedOfOne,
+              persistReceivingNotesFromState,
+            ])}>
+          {s(serialNumberLooksGood ? `Save and Continue` : `Enter a serial number`)}
+        </PrimarySaveButton>,
+      ]
+      closeCancel>
+      <Subheading> {`Tracking Number Receiving Notes`->s} </Subheading>
+      {tracking.jocoNotes.render()}
+      <VSpace px=20 />
+      <Subheading> {`Enter the serial number for this item`->s} </Subheading>
+      <input
+        onChange=serialNumberOnChange
+        type_="text"
+        value={serialNumber}
+        style={ReactDOM.Style.make(~fontSize="1.5em", ~width="400px", ())}
+      />
+      <Subheading> {`Any notes on this item?`->s} </Subheading>
+      <textarea
+        style={ReactDOM.Style.make(~width="100%", ())}
+        value=receivingNotes
+        onChange=receivingNotesOnChange
+        rows=6
+      />
     </PipelineDialog>
   }
 }

@@ -54,5 +54,6 @@ module Button = {
     ~size: string,
     ~onClick: unit => _,
     ~style: ReactDOM.Style.t=?,
+    ~disabled: bool=?,
   ) => React.element = "Button"
 }
