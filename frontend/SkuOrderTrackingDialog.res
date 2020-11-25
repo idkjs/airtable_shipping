@@ -22,19 +22,19 @@ let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTr
     dispatch(UpdateWarehouseNotes(""))
   }
   let saveWarehouseNotesAndClose = () => {
-    dispatch(BlindFieldUpdate(sotr.warehouseNotes.updateAsync(state.warehouseNotes)))
+    dispatch(BlindFieldUpdate(() => sotr.warehouseNotes.updateAsync(state.warehouseNotes)))
     dialogClose()
   }
   let receiveTrackingNumberSaveNotesAndClose = () => {
-    dispatch(BlindFieldUpdate(sotr.receivedTime.updateAsync(Some(nowMoment()))))
+    dispatch(BlindFieldUpdate(() => sotr.receivedTime.updateAsync(Some(nowMoment()))))
     saveWarehouseNotesAndClose()
   }
   let unreceiveTrackingNumberSaveNotesAndClose = () => {
-    dispatch(BlindFieldUpdate(sotr.receivedTime.updateAsync(None)))
+    dispatch(BlindFieldUpdate(() => sotr.receivedTime.updateAsync(None)))
     saveWarehouseNotesAndClose()
   }
 
-  let warehouseNotesOnChange = dispatch->mapEvent(v => UpdateWarehouseNotes(v), identity)
+  let warehouseNotesOnChange = dispatch->onChangeHandler(v => UpdateWarehouseNotes(v))
 
   let cancelAndDontSaveButton =
     <CancelButton onClick=dialogClose> {s(`Don't save my changes`)} </CancelButton>

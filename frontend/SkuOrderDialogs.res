@@ -2,43 +2,67 @@ open PipelineDialog
 open Util
 open Schema
 open Belt
+open Reducer
+open SkuOrderBox
 
-module DataCorruption = {
-  @react.component
-  let make = (~formattedErrorText: string, ~closeCancel: unit => _) =>
-    <PipelineDialog
-      header=`Data Corruption`
-      actionButtons=[
-        <CancelButton onClick=closeCancel> {s(`Ok, We'll Fix It 😔`)} </CancelButton>,
-      ]
-      closeCancel>
-      <Subheading>
-        {`Review these items and make the necessary corrections to move on`->s}
-      </Subheading>
-      <pre> {formattedErrorText->s} </pre>
-    </PipelineDialog>
+type skuOrderDialogVars = {
+  // data
+  skuOrder: skuOrderRecord,
+  sku: skuRecord,
+  dest: boxDestinationRecord,
+  tracking: skuOrderTrackingRecord,
+  // actions
+  dispatch: action => unit,
+  closeCancel: unit => unit,
+  updateQtyReceivedFromState: action,
+  updateReceivingNotesFromState: action,
+  updateSerialNumberFromState: action,
+  markReceivedCheckbox: action,
+  serializeSkuName: action,
+  dialogClose: action,
+  // display vars
+  qtyToReceive: int,
+  qtyToReceiveOnChange: ReactEvent.Form.t => unit,
+  receivingNotes: string,
+  receivingNotesOnChange: ReactEvent.Form.t => unit,
 }
 
 module ReceiveUnserialedSku = {
   @react.component
-  let make = (
-    ~tracking: skuOrderTrackingRecord,
-    ~skuOrder: skuOrderRecord,
-    ~sku: skuRecord,
-    ~skuReceivingQtyStr: string,
-    ~onSkuReceivingQtyChange: ReactEvent.Form.t => unit,
-    ~skuReceivingNotes: string,
-    ~onSkuReceivingNotesChange: ReactEvent.Form.t => unit,
-    ~closeCancel: unit => unit,
-    ~saveClose: unit => unit,
-    ~saveContinue: unit => unit,
-  ) =>
+  let make = (~dialogVars: skuOrderDialogVars) => {
+    let {
+      skuOrder,
+      sku,
+      closeCancel,
+      dispatch,
+      updateQtyReceivedFromState,
+      updateReceivingNotesFromState,
+      dialogClose,
+      tracking,
+      qtyToReceive,
+      qtyToReceiveOnChange,
+      receivingNotes,
+      receivingNotesOnChange,
+    } = dialogVars
+
     <PipelineDialog
       header={`Receive & QC: ${sku.skuName.read()}`}
       actionButtons=[
         <CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>,
-        <SecondarySaveButton onClick=saveClose> {s(`Save and Close`)} </SecondarySaveButton>,
-        <PrimarySaveButton onClick=saveContinue> {s(`Save and Continue`)} </PrimarySaveButton>,
+        <SecondarySaveButton
+          onClick={() =>
+            dispatch->multi([
+              updateQtyReceivedFromState,
+              updateReceivingNotesFromState,
+              dialogClose,
+            ])}>
+          {s(`Save and Close`)}
+        </SecondarySaveButton>,
+        <PrimarySaveButton
+          onClick={() =>
+            dispatch->multi([updateQtyReceivedFromState, updateReceivingNotesFromState])}>
+          {s(`Save and Continue`)}
+        </PrimarySaveButton>,
       ]
       closeCancel>
       <Subheading> {`Tracking Number Receiving Notes`->s} </Subheading>
@@ -62,11 +86,11 @@ module ReceiveUnserialedSku = {
             header: `Qty To Receive`,
             accessor: () =>
               <input
-                onChange=onSkuReceivingQtyChange
+                onChange=qtyToReceiveOnChange
                 type_="number"
-                value={skuReceivingQtyStr}
+                value={qtyToReceive->Int.toString}
                 style={ReactDOM.Style.make(~fontSize="1.5em", ~width="77px", ())}
-              />, //skuReceivingQtyInput,
+              />,
             tdStyle: ReactDOM.Style.make(~width="88px", ()),
           },
           {
@@ -74,16 +98,17 @@ module ReceiveUnserialedSku = {
             accessor: () =>
               <textarea
                 style={ReactDOM.Style.make(~width="100%", ())}
-                value=skuReceivingNotes
-                onChange=onSkuReceivingNotesChange
+                value=receivingNotes
+                onChange=receivingNotesOnChange
                 rows=6
-              />, //skuReceivingNotesTextArea,
+              />,
             tdStyle: ReactDOM.Style.make(~width="40%", ()),
           },
         ]
       />
       <VSpace px=40 />
     </PipelineDialog>
+  }
 }
 module Temp = {
   @react.component
@@ -95,5 +120,21 @@ module Temp = {
       ]
       closeCancel>
       <Subheading> {`DER`->s} </Subheading>
+    </PipelineDialog>
+}
+
+module DataCorruption = {
+  @react.component
+  let make = (~formattedErrorText: string, ~closeCancel: unit => _) =>
+    <PipelineDialog
+      header=`Data Corruption`
+      actionButtons=[
+        <CancelButton onClick=closeCancel> {s(`Ok, We'll Fix It 😔`)} </CancelButton>,
+      ]
+      closeCancel>
+      <Subheading>
+        {`Review these items and make the necessary corrections to move on`->s}
+      </Subheading>
+      <pre> {formattedErrorText->s} </pre>
     </PipelineDialog>
 }

@@ -7,7 +7,7 @@ type action =
   | FocusOnTrackingRecord(skuOrderTrackingRecord)
   | UnfocusTrackingRecord
   // maybe not used
-  | BlindFieldUpdate(Js.Promise.t<unit>)
+  | BlindFieldUpdate(unit => Js.Promise.t<unit>)
   | UpdateWarehouseNotes(string)
   | FocusOnOrderRecord(skuOrderRecord)
   | UnfocusOrderRecord
@@ -39,14 +39,17 @@ let initialState: state = {
 }
 
 let reducer = (state, action) => {
-  Js.Console.log(state)
-  switch action {
+  let rv = switch action {
   | UpdateSearchString(str) => {...state, searchString: str}
   | FocusOnTrackingRecord(skotr) => {...state, focusOnTrackingRecordId: skotr.id}
   | UnfocusTrackingRecord => {...state, focusOnTrackingRecordId: nullRecordId}
   | FocusOnOrderRecord(so) => {...state, focusOnSkuOrderRecordId: so.id}
   | UnfocusOrderRecord => {...state, focusOnSkuOrderRecordId: nullRecordId}
-  | BlindFieldUpdate(_) => state
+  | BlindFieldUpdate(fn) => {
+      //execute
+      let _ = fn()
+      state
+    }
   | UpdateWarehouseNotes(str) => {
       ...state,
       warehouseNotes: str,
@@ -64,11 +67,16 @@ let reducer = (state, action) => {
       skuSerial: s,
     }
   }
+  Js.Console.log(rv)
+  rv
 }
 
-let mapEvent: (action => unit, 'needed => action, string => 'needed, 'event) => unit = (
+let onChangeHandler: (action => unit, string => action, 'event) => unit = (
   dispatch,
   makeaction,
-  convertaction,
   event,
-) => ReactEvent.Form.target(event)["value"]->convertaction->makeaction->dispatch
+) => ReactEvent.Form.target(event)["value"]->makeaction->dispatch
+
+let multi: (action => unit, array<action>) => unit = (dispatch, actions) => {
+  let _ = actions->Array.map(dispatch)
+}
