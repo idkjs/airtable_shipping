@@ -14,6 +14,7 @@ type action =
   | UpdateSKUReceivedQty(option<int>)
   | UpdateReceivingNotes(string)
   | UpdateSKUSerial(string)
+  | UpdateBoxSearchString(string)
 
 type state = {
   // search for tracking
@@ -26,6 +27,8 @@ type state = {
   skuQuantityReceived: option<int>,
   skuReceivingNotes: string,
   skuSerial: string,
+  // box
+  boxSearchString: string,
 }
 
 let initialState: state = {
@@ -36,6 +39,7 @@ let initialState: state = {
   skuQuantityReceived: None,
   skuReceivingNotes: "",
   skuSerial: "",
+  boxSearchString: "",
 }
 
 let reducer = (state, action) => {
@@ -65,6 +69,10 @@ let reducer = (state, action) => {
   | UpdateSKUSerial(s) => {
       ...state,
       skuSerial: s,
+    }
+  | UpdateBoxSearchString(s) => {
+      ...state,
+      boxSearchString: s,
     }
   }
   Js.Console.log(rv)

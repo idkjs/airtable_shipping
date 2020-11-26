@@ -12,7 +12,7 @@ type stage =
   | DataCorruption(string)
   | ReceiveQtyOfSku(skuOrderDialogVars)
   | CollectSerialNumberAndReceive1(skuOrderDialogVars)
-  | PutInBox(skuOrderDialogVars, potentialBoxes)
+  | PutInBox(skuOrderDialogVars, array<potentialBox>)
 
 let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
   schema,
@@ -87,6 +87,8 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         serialNumber: state.skuSerial,
         serialNumberLooksGood: state.skuSerial->serialNumberLooksGood,
         serialNumberOnChange: dispatch->onChangeHandler(v => UpdateSKUSerial(v)),
+        boxSearchString: state.boxSearchString,
+        boxSearchStringOnChange: dispatch->onChangeHandler(v => UpdateBoxSearchString(v)),
       }
 
       switch (
@@ -184,12 +186,14 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
   let closeCancel = () => dispatch(UnfocusOrderRecord)
 
   let realOpen = ({skuOrder, sku}, unit) => {
-    let _ =
-      dispatch->multi([
-        UpdateSKUReceivedQty(Some(skuOrder.quantityExpected.read())),
-        UpdateReceivingNotes(skuOrder.receivingNotes.read()),
-        UpdateSKUSerial(sku.serialNumber.read()),
-      ])
+    let _ = // reset all the core values to their defaults for this order
+    dispatch->multi([
+      UpdateSKUReceivedQty(Some(skuOrder.quantityExpected.read())),
+      UpdateReceivingNotes(skuOrder.receivingNotes.read()),
+      UpdateSKUSerial(sku.serialNumber.read()),
+      // leave this un-reset... so that we can have it sticky
+      //UpdateBoxSearchString(""),
+    ])
     dumbOpen()
   }
 
@@ -209,7 +213,7 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
     | DataCorruption(msg) => <DataCorruption closeCancel formattedErrorText=msg />
     | ReceiveQtyOfSku(dialogVars) => <ReceiveUnserialedSku dialogVars />
     | CollectSerialNumberAndReceive1(dialogVars) => <ReceiveSerialedSku dialogVars />
-    | _ => <Temp closeCancel />
+    | PutInBox(dialogVars, potentialBoxes) => <BoxSku dialogVars potentialBoxes />
     },
   }
 }

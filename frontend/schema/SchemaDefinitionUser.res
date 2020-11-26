@@ -204,11 +204,6 @@ and boxesTable: airtableTableDef = {
       fieldValueType: FormulaRollupRO(IntAsBool),
     },
     {
-      resolutionMethod: ByName(`gtg_is_user_toggled_for_packing`),
-      camelCaseFieldName: `isToggledForPacking`,
-      fieldValueType: ScalarRW(Bool),
-    },
-    {
       resolutionMethod: ByName(`gtg_is_penultimate_box`),
       camelCaseFieldName: `isPenultimateBox`,
       fieldValueType: FormulaRollupRO(IntAsBool),
@@ -217,6 +212,11 @@ and boxesTable: airtableTableDef = {
       resolutionMethod: ByName(`gtg_is_empty`),
       camelCaseFieldName: `isEmpty`,
       fieldValueType: FormulaRollupRO(IntAsBool),
+    },
+    {
+      resolutionMethod: ByName(`Notes`),
+      camelCaseFieldName: `boxNotes`,
+      fieldValueType: ScalarRW(BareString),
     },
   ],
 }

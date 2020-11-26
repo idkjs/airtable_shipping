@@ -2,13 +2,11 @@ open Belt
 open Schema
 open Util
 
-type userSelectableBox = BoxThatExists(string) | BoxToMake(string)
-
-type potentialBoxes = {
-  maxBox: option<boxRecord>,
-  penultimateBox: option<boxRecord>,
-  otherEmptyBoxes: array<boxRecord>,
-  newBox: string,
+type potentialBox = {
+  name: string,
+  status: string,
+  isEmpty: bool,
+  notes: string,
 }
 
 let formatBoxNameWithNumber: (boxDestinationRecord, int) => string = (bdr, i) => {
@@ -22,7 +20,7 @@ let formatBoxNameWithNumber: (boxDestinationRecord, int) => string = (bdr, i) =>
   `${bdr.destinationPrefix.read()}-${paddedNumber}`
 }
 
-let findPotentialBoxes: (schema, boxDestinationRecord) => result<potentialBoxes, string> = (
+let findPotentialBoxes: (schema, boxDestinationRecord) => result<array<potentialBox>, string> = (
   schema,
   bdr,
 ) => {
@@ -36,6 +34,18 @@ let findPotentialBoxes: (schema, boxDestinationRecord) => result<potentialBoxes,
           Array.range(1, boxes->Array.length),
         )
       : Set.Int.empty
+
+  let realToPotential: boxRecord => potentialBox = real => {
+    name: real.boxName.read(),
+    status: switch (real.isMaxBox.read(), real.isPenultimateBox.read(), real.isEmpty.read()) {
+    | (true, _, _) => `Most recent box`
+    | (_, true, _) => `Second most recent box`
+    | (_, _, true) => `Other Empty Box`
+    | _ => `A box with things in it`
+    },
+    isEmpty: real.isEmpty.read(),
+    notes: real.boxNotes.read(),
+  }
 
   // i want the symmetric difference -- everything that's not
   // present in both lists... the opposite of the intersection
@@ -79,16 +89,39 @@ We didn't expect to see the following box numbers: [${presentButNotExpected->toN
   }
 
   switch errorMessage {
-  | "" =>
-    Ok({
-      // it's sorted and this returns an option
-      maxBox: boxes->Array.get(0),
-      penultimateBox: boxes->Array.get(1),
-      otherEmptyBoxes: boxes->Array.keep(box => box.isEmpty.read()),
-      // either the next box number or the first box
-      newBox: boxes->Array.get(0)->Option.mapWithDefault(1, box => box.boxNumberOnly.read() + 1)
-        |> formatBoxNameWithNumber(bdr),
-    })
+  | "" => {
+      let newBox: potentialBox = {
+        name: boxes->Array.get(0)->Option.mapWithDefault(1, box => box.boxNumberOnly.read() + 1)
+          |> formatBoxNameWithNumber(bdr),
+        status: `🆕 NEW 🆕`,
+        notes: `To be created by receiving tool`,
+        isEmpty: true,
+      }
+      let (empties, fullies) = if boxes->Array.length > 2 {
+        boxes
+        ->Array.sliceToEnd(2)
+        ->Array.map(realToPotential)
+        ->Array.partition(pbox => pbox.isEmpty)
+      } else {
+        ([], [])
+      }
+
+      Ok(
+        // max box, then pen box, then new box, then empties, then fullies
+        Array.concatMany([
+          [
+            // maxBox
+            boxes->Array.get(0)->Option.map(realToPotential),
+            // penultimate
+            boxes->Array.get(1)->Option.map(realToPotential),
+            Some(newBox),
+            //boxes->Array.get(1),
+          ]->Array.keepMap(identity),
+          empties,
+          fullies,
+        ]),
+      )
+    }
   | err => Error(err)
   }
 }

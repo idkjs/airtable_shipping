@@ -28,6 +28,8 @@ type skuOrderDialogVars = {
   serialNumber: string,
   serialNumberLooksGood: bool,
   serialNumberOnChange: ReactEvent.Form.t => unit,
+  boxSearchString: string,
+  boxSearchStringOnChange: ReactEvent.Form.t => unit,
 }
 
 module ReceiveUnserialedSku = {
@@ -181,6 +183,57 @@ module ReceiveSerialedSku = {
     </PipelineDialog>
   }
 }
+
+module BoxSku = {
+  @react.component
+  let make = (~dialogVars: skuOrderDialogVars, ~potentialBoxes: array<potentialBox>) => {
+    let {sku, closeCancel, boxSearchString, boxSearchStringOnChange} = dialogVars
+    <PipelineDialog
+      header={`Box ${sku.skuName.read()}`}
+      actionButtons=[<CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>]
+      closeCancel>
+      <Subheading> {`Narrow Box Results`->s} </Subheading>
+      <input
+        onChange=boxSearchStringOnChange
+        type_="text"
+        value={boxSearchString}
+        style={ReactDOM.Style.make(~fontSize="1.5em", ~width="400px", ())}
+      />
+      <Subheading> {`Pick a box to receive into`->s} </Subheading>
+      <Table
+        rowId={box => box.name}
+        elements={potentialBoxes->Array.keep(box =>
+          boxSearchString->trimLower == "" ||
+            Js.String.includes(boxSearchString->trimLower, box.name->trimLower)
+        )}
+        columnDefs=[
+          {
+            header: `Empty?`,
+            accessor: box => (box.isEmpty ? `✅🌈` : `⛔🙅`)->s,
+            tdStyle: ReactDOM.Style.make(~fontSize="1.7em", ~textAlign="center", ()),
+          },
+          {
+            header: `Box Name`,
+            accessor: box => box.name->s,
+            tdStyle: ReactDOM.Style.make(~fontSize="1.3em", ~textAlign="center", ()),
+          },
+          {
+            header: `Status`,
+            accessor: box => box.status->s,
+            tdStyle: ReactDOM.Style.make(),
+          },
+          {
+            header: `Box Notes`,
+            accessor: box => box.notes->s,
+            tdStyle: ReactDOM.Style.make(),
+          },
+        ]
+      />
+      <VSpace px=40 />
+    </PipelineDialog>
+  }
+}
+
 module Temp = {
   @react.component
   let make = (~closeCancel: unit => _) =>
