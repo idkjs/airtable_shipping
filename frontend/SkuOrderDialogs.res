@@ -28,8 +28,16 @@ type skuOrderDialogVars = {
   serialNumber: string,
   serialNumberLooksGood: bool,
   serialNumberOnChange: ReactEvent.Form.t => unit,
-  boxSearchString: string,
-  boxSearchStringOnChange: ReactEvent.Form.t => unit,
+  boxSearchString: boxDestinationRecord => string,
+  boxSearchStringOnChange: (boxDestinationRecord, ReactEvent.Form.t) => unit,
+  qtyToBox: potentialBox => int,
+  qtyToBoxOnChange: (potentialBox, ReactEvent.Form.t) => unit,
+  boxNotes: potentialBox => string,
+  boxNotesOnChange: (potentialBox, ReactEvent.Form.t) => unit,
+  boxesToDisplay: array<potentialBox>,
+  selectedBox: option<potentialBox>,
+  boxIsSelected: bool,
+  noBoxSearchResults: bool,
 }
 
 module ReceiveUnserialedSku = {
@@ -186,49 +194,148 @@ module ReceiveSerialedSku = {
 
 module BoxSku = {
   @react.component
-  let make = (~dialogVars: skuOrderDialogVars, ~potentialBoxes: array<potentialBox>) => {
-    let {sku, closeCancel, boxSearchString, boxSearchStringOnChange} = dialogVars
+  let make = (~dialogVars: skuOrderDialogVars) => {
+    let {
+      dispatch,
+      sku,
+      skuOrder,
+      closeCancel,
+      boxSearchString,
+      boxSearchStringOnChange,
+      qtyToBox,
+      qtyToBoxOnChange,
+      boxNotes,
+      boxNotesOnChange,
+      boxesToDisplay,
+      selectedBox,
+      boxIsSelected,
+      noBoxSearchResults,
+      dest,
+      receivingNotes,
+      receivingNotesOnChange,
+    } = dialogVars
+
+    let clearSearchBtn =
+      <CancelButton onClick={() => UpdateBoxSearchString(dest, "")->dispatch}>
+        {`Clear Search`->s}
+      </CancelButton>
+
     <PipelineDialog
       header={`Box ${sku.skuName.read()}`}
       actionButtons=[<CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>]
       closeCancel>
       <Subheading> {`Narrow Box Results`->s} </Subheading>
       <input
-        onChange=boxSearchStringOnChange
+        onChange={dest->boxSearchStringOnChange}
         type_="text"
-        value={boxSearchString}
+        value={dest->boxSearchString}
         style={ReactDOM.Style.make(~fontSize="1.5em", ~width="400px", ())}
       />
+      {clearSearchBtn}
       <Subheading> {`Pick a box to receive into`->s} </Subheading>
-      <Table
-        rowId={box => box.name}
-        elements={potentialBoxes->Array.keep(box =>
-          boxSearchString->trimLower == "" ||
-            Js.String.includes(boxSearchString->trimLower, box.name->trimLower)
-        )}
-        columnDefs=[
-          {
-            header: `Empty?`,
-            accessor: box => (box.isEmpty ? `✅🌈` : `⛔🙅`)->s,
-            tdStyle: ReactDOM.Style.make(~fontSize="1.7em", ~textAlign="center", ()),
-          },
-          {
-            header: `Box Name`,
-            accessor: box => box.name->s,
-            tdStyle: ReactDOM.Style.make(~fontSize="1.3em", ~textAlign="center", ()),
-          },
-          {
-            header: `Status`,
-            accessor: box => box.status->s,
-            tdStyle: ReactDOM.Style.make(),
-          },
-          {
-            header: `Box Notes`,
-            accessor: box => box.notes->s,
-            tdStyle: ReactDOM.Style.make(),
-          },
-        ]
-      />
+      {noBoxSearchResults
+        ? <div> <p> {`No results found for query`->s} </p> {clearSearchBtn} </div>
+        : <Table
+            rowId={box => box.name}
+            elements=boxesToDisplay
+            columnDefs=[
+              {
+                header: `Empty?`,
+                accessor: box => (box.isEmpty ? `✅🌈` : `⛔🙅`)->s,
+                tdStyle: ReactDOM.Style.make(~fontSize="1.7em", ~textAlign="center", ()),
+              },
+              {
+                header: `Box Name`,
+                accessor: box => box.name->s,
+                tdStyle: ReactDOM.Style.make(~fontSize="1.3em", ~textAlign="center", ()),
+              },
+              {
+                header: `Status`,
+                accessor: box => box.status->s,
+                tdStyle: ReactDOM.Style.make(),
+              },
+              {
+                header: `Box Notes`,
+                accessor: box => box.notes->s,
+                tdStyle: ReactDOM.Style.make(),
+              },
+              {
+                header: `Action`,
+                accessor: box => {
+                  boxIsSelected
+                    ? clearSearchBtn
+                    : <PrimarySaveButton
+                        onClick={() => UpdateBoxSearchString(dest, box.name)->dispatch}>
+                        {`Select`->s}
+                      </PrimarySaveButton>
+                },
+                tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
+              },
+            ]
+          />}
+      {switch selectedBox {
+      | None => ``->s
+      | Some(box) =>
+        <div>
+          <Subheading> {(`Receive ${sku.skuName.read()} into ${box.name}`)->s} </Subheading>
+          <Table
+            rowId={box => box.name}
+            elements=[box]
+            columnDefs=[
+              {
+                header: `Sku`,
+                accessor: _ => skuOrder.skuOrderSku.scalar.render(),
+                tdStyle: ReactDOM.Style.make(),
+              },
+              {
+                header: `Qty Unboxed`,
+                accessor: _ =>
+                  skuOrder.quantityReceived.read()
+                  ->Option.mapWithDefault(0, rcv => rcv - skuOrder.quantityPacked.read())
+                  ->itos,
+                tdStyle: ReactDOM.Style.make(~fontSize="1.7em", ~textAlign="center", ()),
+              },
+              {
+                header: `Box Qty`,
+                accessor: pb =>
+                  <input
+                    onChange={pb->qtyToBoxOnChange}
+                    type_="number"
+                    value={pb->qtyToBox->Int.toString}
+                    style={ReactDOM.Style.make(~fontSize="1.5em", ~width="77px", ())}
+                  />,
+                tdStyle: ReactDOM.Style.make(~fontSize="1.7em", ~textAlign="center", ()),
+              },
+              {
+                header: `Boxing Notes`,
+                accessor: pb =>
+                  <textarea
+                    style={ReactDOM.Style.make(~width="100%", ())}
+                    value={pb->boxNotes}
+                    onChange={pb->boxNotesOnChange}
+                    rows=6
+                  />,
+                tdStyle: ReactDOM.Style.make(~width="40%", ()),
+              },
+              {
+                header: `Box it`,
+                accessor: pb =>
+                  <PrimarySaveButton onClick=closeCancel>
+                    {(`Receive ${pb->qtyToBox->Int.toString}`)->s} <br /> {(`into ${pb.name}`)->s}
+                  </PrimarySaveButton>,
+                tdStyle: ReactDOM.Style.make(),
+              },
+            ]
+          />
+          <Subheading> {`Review/Edit Receiving Notes for this entire SKUOrder`->s} </Subheading>
+          <textarea
+            style={ReactDOM.Style.make(~width="100%", ())}
+            value=receivingNotes
+            onChange=receivingNotesOnChange
+            rows=6
+          />
+        </div>
+      }}
       <VSpace px=40 />
     </PipelineDialog>
   }

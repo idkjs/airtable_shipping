@@ -1,5 +1,3 @@
-open AirtableUI
-open Airtable
 open Schema
 open Util
 open Reducer
@@ -12,7 +10,7 @@ type stage =
   | DataCorruption(string)
   | ReceiveQtyOfSku(skuOrderDialogVars)
   | CollectSerialNumberAndReceive1(skuOrderDialogVars)
-  | PutInBox(skuOrderDialogVars, array<potentialBox>)
+  | PutInBox(skuOrderDialogVars)
 
 let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
   schema,
@@ -40,6 +38,20 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
   switch (skuOpt, destOpt, parentOpt, skuOrder.quantityExpected.read()) {
   | (Some(sku), Some(dest), Some(parent), expectQty) when expectQty > 0 => {
       // welp we've deref'd some important core stuff
+
+      let boxesToDisplay =
+        schema
+        ->findPotentialBoxes(dest)
+        ->Result.mapWithDefault([], potentialBoxes => potentialBoxes->Array.keep(box => {
+            let boxSearchString = state->getSearchString(dest)->trimLower
+            boxSearchString == "" || Js.String.includes(boxSearchString, box.name->trimLower)
+          }))
+
+      let selectedBox =
+        boxesToDisplay
+        ->Array.get(0)
+        ->Option.flatMap(box => boxesToDisplay->Array.length == 1 ? Some(box) : None)
+
       let sovars = {
         skuOrder: skuOrder,
         sku: sku,
@@ -87,8 +99,23 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         serialNumber: state.skuSerial,
         serialNumberLooksGood: state.skuSerial->serialNumberLooksGood,
         serialNumberOnChange: dispatch->onChangeHandler(v => UpdateSKUSerial(v)),
-        boxSearchString: state.boxSearchString,
-        boxSearchStringOnChange: dispatch->onChangeHandler(v => UpdateBoxSearchString(v)),
+        boxSearchString: state->getSearchString,
+        boxSearchStringOnChange: dest =>
+          dispatch->onChangeHandler(v => UpdateBoxSearchString(dest, v)),
+        qtyToBox: state->getQtyToBox(skuOrder),
+        qtyToBoxOnChange: pb =>
+          dispatch->onChangeHandler(v => UpdateQtyToBox2(
+            skuOrder,
+            pb,
+            v->Int.fromString->Option.mapWithDefault(0, v => v > 0 ? v : 0),
+          )),
+        boxNotes: state->getBoxNotes(skuOrder),
+        boxNotesOnChange: pb => dispatch->onChangeHandler(v => UpdateBoxNotes2(skuOrder, pb, v)),
+        //
+        boxesToDisplay: boxesToDisplay,
+        selectedBox: selectedBox,
+        boxIsSelected: selectedBox->Option.isSome,
+        noBoxSearchResults: boxesToDisplay->Array.length == 0,
       }
 
       switch (
@@ -143,7 +170,7 @@ have a quantity received entered at all, since we are still waiting for it.
 
       | (Some(_), true, true, Ok(potentialBoxes))
       | (Some(_), false, false, Ok(potentialBoxes)) =>
-        PutInBox(sovars, potentialBoxes)
+        PutInBox(sovars)
       | (Some(_), _, _, Error(boxDataError)) => DataCorruption(boxDataError)
       | (Some(_), _, _, _) =>
         DataCorruption(
@@ -185,15 +212,14 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
   let dumbOpen = () => dispatch(FocusOnOrderRecord(sor))
   let closeCancel = () => dispatch(UnfocusOrderRecord)
 
-  let realOpen = ({skuOrder, sku}, unit) => {
+  let realOpen = ({skuOrder, sku}, ()) => {
     let _ = // reset all the core values to their defaults for this order
     dispatch->multi([
       UpdateSKUReceivedQty(Some(skuOrder.quantityExpected.read())),
       UpdateReceivingNotes(skuOrder.receivingNotes.read()),
       UpdateSKUSerial(sku.serialNumber.read()),
-      // leave this un-reset... so that we can have it sticky
-      //UpdateBoxSearchString(""),
     ])
+
     dumbOpen()
   }
 
@@ -206,14 +232,14 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
       <PrimaryActionButton onClick={realOpen(sov)}>
         {"Enter Serial Number"->s}
       </PrimaryActionButton>
-    | PutInBox(sov, _) =>
+    | PutInBox(sov) =>
       <PrimaryActionButton onClick={realOpen(sov)}> {"Box Item"->s} </PrimaryActionButton>
     },
     dialog: switch recordStatus {
     | DataCorruption(msg) => <DataCorruption closeCancel formattedErrorText=msg />
     | ReceiveQtyOfSku(dialogVars) => <ReceiveUnserialedSku dialogVars />
     | CollectSerialNumberAndReceive1(dialogVars) => <ReceiveSerialedSku dialogVars />
-    | PutInBox(dialogVars, potentialBoxes) => <BoxSku dialogVars potentialBoxes />
+    | PutInBox(dialogVars) => <BoxSku dialogVars />
     },
   }
 }

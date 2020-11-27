@@ -97,6 +97,9 @@ function selectRecordsFromTableOrView (tableOrView, fetchfields, sortsArr) {
 }
 
 function buildAirtableObjectMap (arrTuple) {
+  // we pass in an array of tuples, which are themselves arrays
+  // so it's an array of 2 el arrays
+  // the first is the raw field and the second is the raw value
   let obj = {}
   arrTuple.forEach(el => (obj[el[0].id] = el[1]))
   console.log(arrTuple, obj)

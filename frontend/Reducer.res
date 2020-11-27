@@ -1,6 +1,8 @@
 open Belt
 open Schema
 open SchemaDefinition
+open SkuOrderBox
+open Util
 
 type action =
   | UpdateSearchString(string)
@@ -14,8 +16,11 @@ type action =
   | UpdateSKUReceivedQty(option<int>)
   | UpdateReceivingNotes(string)
   | UpdateSKUSerial(string)
-  | UpdateBoxSearchString(string)
+  | UpdateBoxSearchString(boxDestinationRecord, string)
+  | UpdateQtyToBox2(skuOrderRecord, potentialBox, int)
+  | UpdateBoxNotes2(skuOrderRecord, potentialBox, string)
 
+type boxStuff = {qty: int, notes: string}
 type state = {
   // search for tracking
   searchString: string,
@@ -28,7 +33,8 @@ type state = {
   skuReceivingNotes: string,
   skuSerial: string,
   // box
-  boxSearchString: string,
+  boxSearchString: Map.String.t<string>,
+  boxStuffMap: Map.String.t<boxStuff>,
 }
 
 let initialState: state = {
@@ -39,10 +45,11 @@ let initialState: state = {
   skuQuantityReceived: None,
   skuReceivingNotes: "",
   skuSerial: "",
-  boxSearchString: "",
+  boxSearchString: Map.String.empty,
+  boxStuffMap: Map.String.empty,
 }
 
-let reducer = (state, action) => {
+let rec reducer = (state, action) => {
   let rv = switch action {
   | UpdateSearchString(str) => {...state, searchString: str}
   | FocusOnTrackingRecord(skotr) => {...state, focusOnTrackingRecordId: skotr.id}
@@ -70,13 +77,39 @@ let reducer = (state, action) => {
       ...state,
       skuSerial: s,
     }
-  | UpdateBoxSearchString(s) => {
+  | UpdateBoxSearchString(bdr, s) => {
       ...state,
-      boxSearchString: s,
+      boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some(s)),
+    }
+  | UpdateQtyToBox2(skor, pb, qty) => {
+      ...state,
+      boxStuffMap: mapBoxStuff(state, skor, pb, bs => {...bs, qty: qty})->first,
+    }
+  | UpdateBoxNotes2(skor, pb, notes) => {
+      ...state,
+      boxStuffMap: mapBoxStuff(state, skor, pb, bs => {...bs, notes: notes})->first,
     }
   }
   Js.Console.log(rv)
   rv
+}
+and mapBoxStuff: (
+  state,
+  skuOrderRecord,
+  potentialBox,
+  boxStuff => boxStuff,
+) => (Map.String.t<boxStuff>, boxStuff) = (state, skor, pb, mapFn) => {
+  let k = `${skor.id}_${pb.name}`
+  // make it all gettable
+  let dict =
+    state.boxStuffMap->Map.String.update(k, bsopt => Some(
+      bsopt->Option.mapWithDefault(
+        {qty: skor.quantityExpected.read(), notes: pb.notes}->mapFn,
+        mapFn,
+      ),
+    ))
+
+  (dict, dict->Map.String.getExn(k)->mapFn)
 }
 
 let onChangeHandler: (action => unit, string => action, 'event) => unit = (
@@ -87,4 +120,14 @@ let onChangeHandler: (action => unit, string => action, 'event) => unit = (
 
 let multi: (action => unit, array<action>) => unit = (dispatch, actions) => {
   let _ = actions->Array.map(dispatch)
+}
+
+let getQtyToBox = (state, skor, pb) => {
+  mapBoxStuff(state, skor, pb, identity)->second->(bs => bs.qty)
+}
+let getBoxNotes = (state, skor, pb) => {
+  mapBoxStuff(state, skor, pb, identity)->second->(bs => bs.notes)
+}
+let getSearchString = (state, bdr) => {
+  state.boxSearchString->Map.String.get(bdr.destName.read())->Option.getWithDefault("")
 }
