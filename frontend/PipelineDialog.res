@@ -46,35 +46,41 @@ module Subheading = {
 
 module EditButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element) =>
-    <Button onClick icon="edit" size="large" variant="default"> {children} </Button>
+  let make = (~onClick: unit => _, ~children: React.element, ~style=?) =>
+    <Button onClick icon="edit" size="large" variant="default" ?style> {children} </Button>
 }
 
 module CancelButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element) =>
-    <Button onClick icon="trash" size="large" variant="default"> {children} </Button>
+  let make = (~onClick: unit => _, ~children: React.element, ~style=?) =>
+    <Button onClick icon="trash" size="large" variant="default" ?style> {children} </Button>
 }
 
 module WarningButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element) =>
-    <Button onClick icon="warning" size="large" variant="danger"> {children} </Button>
+  let make = (~onClick: unit => _, ~children: React.element, ~style=?) =>
+    <Button onClick icon="warning" size="large" variant="danger" ?style> {children} </Button>
 }
 
 module PrimaryActionButton = {
   @react.component
-  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element) =>
-    <Button onClick ?disabled icon="bolt" size="large" variant="primary"> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element, ~style=?) =>
+    <Button onClick ?disabled icon="bolt" size="large" variant="primary" ?style>
+      {children}
+    </Button>
 }
 module PrimarySaveButton = {
   @react.component
-  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element) =>
-    <Button onClick ?disabled icon="book" size="large" variant="primary"> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element, ~style=?) =>
+    <Button onClick ?disabled icon="book" size="large" variant="primary" ?style>
+      {children}
+    </Button>
 }
 
 module SecondarySaveButton = {
   @react.component
-  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element) =>
-    <Button onClick ?disabled icon="book" size="large" variant="default"> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element, ~style=?) =>
+    <Button onClick ?disabled icon="book" size="large" variant="default" ?style>
+      {children}
+    </Button>
 }

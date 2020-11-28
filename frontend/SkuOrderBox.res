@@ -1,12 +1,14 @@
 open Belt
 open Schema
 open Util
+open SchemaDefinition
 
 type potentialBox = {
   name: string,
   status: string,
   isEmpty: bool,
   notes: string,
+  getRecordId: Js.Promise.t<recordId<boxRecord>>,
 }
 
 let formatBoxNameWithNumber: (boxDestinationRecord, int) => string = (bdr, i) => {
@@ -45,6 +47,7 @@ let findPotentialBoxes: (schema, boxDestinationRecord) => result<array<potential
     },
     isEmpty: real.isEmpty.read(),
     notes: real.boxNotes.read(),
+    getRecordId: Js.Promise.resolve(real.id),
   }
 
   // i want the symmetric difference -- everything that's not
@@ -91,11 +94,18 @@ We didn't expect to see the following box numbers: [${presentButNotExpected->toN
   switch errorMessage {
   | "" => {
       let newBox: potentialBox = {
-        name: boxes->Array.get(0)->Option.mapWithDefault(1, box => box.boxNumberOnly.read() + 1)
-          |> formatBoxNameWithNumber(bdr),
-        status: `🆕 NEW 🆕`,
-        notes: `To be created by receiving tool`,
-        isEmpty: true,
+        let newNumber =
+          boxes->Array.get(0)->Option.mapWithDefault(1, box => box.boxNumberOnly.read() + 1)
+        {
+          name: formatBoxNameWithNumber(bdr, newNumber),
+          status: `🆕 NEW 🆕`,
+          notes: `Created by Receiving Tool`,
+          isEmpty: true,
+          getRecordId: schema.box.crud.create([
+            schema.box.boxNumberOnlyField.buildObjectMapComponent(newNumber),
+            schema.box.boxDestField.buildObjectMapComponent(bdr.id),
+          ]),
+        }
       }
       let (empties, fullies) = if boxes->Array.length > 2 {
         boxes

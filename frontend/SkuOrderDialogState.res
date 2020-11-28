@@ -52,6 +52,12 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         ->Array.get(0)
         ->Option.flatMap(box => boxesToDisplay->Array.length == 1 ? Some(box) : None)
 
+      /*
+      let boxSomeOfThisSkuOrder = (pbox, qtyToBox)=>{
+        
+
+      }
+*/
       let sovars = {
         skuOrder: skuOrder,
         sku: sku,
@@ -107,7 +113,18 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           dispatch->onChangeHandler(v => UpdateQtyToBox2(
             skuOrder,
             pb,
-            v->Int.fromString->Option.mapWithDefault(0, v => v > 0 ? v : 0),
+            v->Int.fromString->Option.mapWithDefault(0, v => {
+              let maxReceivableQty =
+                skuOrder.quantityReceived.read()->Option.getWithDefault(0) -
+                  skuOrder.quantityPacked.read()
+
+              // you can't put bs numbers in this box
+              switch (1 >= v, v > maxReceivableQty) {
+              | (true, _) => 1
+              | (_, true) => Js.Math.max_int(0, maxReceivableQty)
+              | _ => v
+              }
+            }),
           )),
         boxNotes: state->getBoxNotes(skuOrder),
         boxNotesOnChange: pb => dispatch->onChangeHandler(v => UpdateBoxNotes2(skuOrder, pb, v)),

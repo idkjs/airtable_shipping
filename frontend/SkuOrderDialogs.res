@@ -84,7 +84,7 @@ module ReceiveUnserialedSku = {
       {tracking.jocoNotes.render()}
       <VSpace px=20 />
       <Table
-        rowId={() => `1`}
+        rowId={() => `${tracking.id}_rcvtab`}
         elements=[()]
         columnDefs=[
           {
@@ -236,7 +236,7 @@ module BoxSku = {
       {noBoxSearchResults
         ? <div> <p> {`No results found for query`->s} </p> {clearSearchBtn} </div>
         : <Table
-            rowId={box => box.name}
+            rowId={box => `${box.name}_selbo`}
             elements=boxesToDisplay
             columnDefs=[
               {
@@ -279,7 +279,7 @@ module BoxSku = {
         <div>
           <Subheading> {(`Receive ${sku.skuName.read()} into ${box.name}`)->s} </Subheading>
           <Table
-            rowId={box => box.name}
+            rowId={box => `${box.name}_packbo`}
             elements=[box]
             columnDefs=[
               {
@@ -320,7 +320,8 @@ module BoxSku = {
               {
                 header: `Box it`,
                 accessor: pb =>
-                  <PrimarySaveButton onClick=closeCancel>
+                  <PrimarySaveButton
+                    onClick=closeCancel style={ReactDOM.Style.make(~padding="10px inherit", ())}>
                     {(`Receive ${pb->qtyToBox->Int.toString}`)->s} <br /> {(`into ${pb.name}`)->s}
                   </PrimarySaveButton>,
                 tdStyle: ReactDOM.Style.make(),

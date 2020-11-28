@@ -41,6 +41,11 @@ let make = (
           tdStyle: ReactDOM.Style.make(),
         },
         {
+          header: `Received#`,
+          accessor: so => so.quantityReceived.render(),
+          tdStyle: ReactDOM.Style.make(),
+        },
+        {
           header: `Packed#`,
           accessor: so => so.quantityPacked.render(),
           tdStyle: ReactDOM.Style.make(),
