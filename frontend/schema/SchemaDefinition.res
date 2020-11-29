@@ -230,7 +230,7 @@ type readWriteScalarRecordField<'t> = {
 /*
 This is the base form of things that don't return records 
 */
-type rec scalarishField = {
+type rec scalarishField<'relUpdateParam> = {
   rawField: airtableRawField,
   string: scalarishRecordFieldBuilder<string>,
   stringOpt: scalarishRecordFieldBuilder<option<string>>,
@@ -239,6 +239,8 @@ type rec scalarishField = {
   bool: scalarishRecordFieldBuilder<bool>,
   intBool: scalarishRecordFieldBuilder<bool>,
   momentOption: scalarishRecordFieldBuilder<option<airtableMoment>>,
+  // special case
+  rel: scalarishRecordFieldBuilder<'relUpdateParam>,
 }
 and scalarishRecordFieldBuilder<'scalarish> = {
   // utility type for scalarish
@@ -276,10 +278,10 @@ let scalarishBuilder: (
   }
 }
 
-let buildScalarishField: (airtableRawTable, airtableRawField) => scalarishField = (
-  rawTable,
-  rawField,
-) => {
+let buildScalarishField: (
+  airtableRawTable,
+  airtableRawField,
+) => scalarishField<airtableRawRecord> = (rawTable, rawField) => {
   rawField: rawField,
   string: scalarishBuilder(rawTable, rawField, getString, identity),
   stringOpt: scalarishBuilder(
@@ -296,4 +298,7 @@ let buildScalarishField: (airtableRawTable, airtableRawField) => scalarishField 
   momentOption: scalarishBuilder(rawTable, rawField, getMomentOption, mopt =>
     mopt->Option.mapWithDefault("", moment => moment->format())
   ),
+  rel: scalarishBuilder(rawTable, rawField, (rawRec, _) => {id: rawRec.id}, identity),
 }
+
+external mapScalarishField: scalarishField<'a> => scalarishField<'b> = "%identity"

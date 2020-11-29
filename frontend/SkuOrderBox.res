@@ -8,7 +8,7 @@ type potentialBox = {
   status: string,
   isEmpty: bool,
   notes: string,
-  getRecordId: Js.Promise.t<recordId<boxRecord>>,
+  getRecordId: unit => Js.Promise.t<recordId<boxRecord>>,
 }
 
 let formatBoxNameWithNumber: (boxDestinationRecord, int) => string = (bdr, i) => {
@@ -47,7 +47,7 @@ let findPotentialBoxes: (schema, boxDestinationRecord) => result<array<potential
     },
     isEmpty: real.isEmpty.read(),
     notes: real.boxNotes.read(),
-    getRecordId: Js.Promise.resolve(real.id),
+    getRecordId: () => Js.Promise.resolve(real.id),
   }
 
   // i want the symmetric difference -- everything that's not
@@ -101,10 +101,11 @@ We didn't expect to see the following box numbers: [${presentButNotExpected->toN
           status: `🆕 NEW 🆕`,
           notes: `Created by Receiving Tool`,
           isEmpty: true,
-          getRecordId: schema.box.crud.create([
-            schema.box.boxNumberOnlyField.buildObjectMapComponent(newNumber),
-            schema.box.boxDestField.buildObjectMapComponent(bdr.id),
-          ]),
+          getRecordId: () =>
+            schema.box.crud.create([
+              schema.box.boxNumberOnlyField.buildObjectMapComponent(newNumber),
+              schema.box.boxDestField.buildObjectMapComponent(bdr),
+            ]),
         }
       }
       let (empties, fullies) = if boxes->Array.length > 2 {

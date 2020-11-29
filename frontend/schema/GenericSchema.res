@@ -17,7 +17,7 @@ to the matching, typed, field in the generated schema.
 */
 type rec genericSchema = {
   // read or readwrite to any kind of non relationship field
-  fields: Map.String.t<scalarishField>,
+  fields: Map.String.t<scalarishField<airtableRawRecord>>,
   // things that can just return query results
   tableish: Map.String.t<genericTable<airtableRawRecord>>,
   // things which need a record to return a query result
@@ -81,7 +81,7 @@ let dereferenceGenericSchema: (
     // all the string keys (must be unique--check that later)
     array<string>,
     // all scalarish fields
-    array<(string, objResult<scalarishField>)>,
+    array<(string, objResult<scalarishField<airtableRawRecord>>)>,
     array<(string, objResult<array<airtableRawField>>)>,
     // these lengthier results need to be
     // parameterized in order to actually return
@@ -253,8 +253,8 @@ by returning the typed version of what were' looking for
 in exchange for various closures 
 */
 
-let getField: (genericSchema, string) => scalarishField = (objs, key) =>
-  objs.fields->Map.String.getExn(key)
+let getField: (genericSchema, string) => scalarishField<'b> = (objs, key) =>
+  objs.fields->Map.String.getExn(key)->mapScalarishField
 
 let getQueryableTableOrView: (
   genericSchema,
@@ -359,17 +359,23 @@ let scalarFieldDeclBuilder: (airtableScalarValueDef, string, string, bool) => (s
         `${invokeGetField}.${scalarishFieldBuilderAccessorName}.buildReadOnly(${rawRecordVarName})`,
       )
 }
-let tableFieldDeclBuilder: (airtableScalarValueDef, string, string) => (string, string) = (
-  scalarDef,
-  invokeGetField,
-  parentRecordTypeName,
-) => {
+let tableFieldDeclBuilder: (
+  airtableScalarValueDef,
+  string,
+  string,
+  option<airtableTableDef>,
+) => (string, string) = (scalarDef, invokeGetField, parentRecordTypeName, maybeRel) => {
   let {reasonReadReturnTypeName, scalarishFieldBuilderAccessorName} = getScalarTypeContext(
     scalarDef,
   )
   (
-    `tableSchemaField<${parentRecordTypeName}, ${reasonReadReturnTypeName}>`,
-    `${invokeGetField}.${scalarishFieldBuilderAccessorName}.tableSchemaField`,
+    `tableSchemaField<${parentRecordTypeName}, ${maybeRel->Option.mapWithDefault(
+      reasonReadReturnTypeName,
+      rtd => getTableNamesContext(rtd).tableRecordTypeName,
+    )}>`,
+    `${invokeGetField}.${maybeRel->Option.isSome
+      ? "rel"
+      : scalarishFieldBuilderAccessorName}.tableSchemaField`,
   )
 }
 
@@ -400,14 +406,17 @@ let getFieldMergeVars = (
   let (
     (recordFieldAccessorStructureType, recordFieldAccessorBuilderInvocation),
     scalarDef,
+    maybeRelTd,
   ) = switch fieldDef.fieldValueType {
   | ScalarRW(scalarish) => (
       scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, true),
       scalarish,
+      None,
     )
   | FormulaRollupRO(scalarish) => (
       scalarFieldDeclBuilder(scalarish, getFieldInvocation, rawRecordVarName, false),
       scalarish,
+      None,
     )
   | RelFieldOption(relTableDef, isSingle, scalarDef) => {
       let {tableRecordTypeName, recordBuilderFnName} = getTableNamesContext(relTableDef)
@@ -431,6 +440,7 @@ let getFieldMergeVars = (
           scalarFieldDeclBuilder(scalarDef, getFieldInvocation, rawRecordVarName, false),
         ),
         scalarDef,
+        Some(relTableDef),
       )
     }
   }
@@ -438,6 +448,7 @@ let getFieldMergeVars = (
     scalarDef,
     getFieldInvocation,
     parentRecordTypeName,
+    maybeRelTd,
   )
 
   {
