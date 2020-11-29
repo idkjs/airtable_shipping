@@ -101,11 +101,14 @@ We didn't expect to see the following box numbers: [${presentButNotExpected->toN
           status: `🆕 NEW 🆕`,
           notes: `Created by Receiving Tool`,
           isEmpty: true,
-          getRecordId: () =>
+          getRecordId: () => {
+            let _ = Js.Console.error(bdr)
             schema.box.crud.create([
               schema.box.boxNumberOnlyField.buildObjectMapComponent(newNumber),
               schema.box.boxDestField.buildObjectMapComponent(bdr),
-            ]),
+              schema.box.boxNotesField.buildObjectMapComponent(`Created by Receiving Tool`),
+            ])
+          },
         }
       }
       let (empties, fullies) = if boxes->Array.length > 2 {

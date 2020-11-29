@@ -131,6 +131,18 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         //
         boxesToDisplay: boxesToDisplay,
         selectedBox: selectedBox,
+        loadSelectedBoxId: () => {
+          open Js.Promise
+          selectedBox->Option.mapWithDefault((), sb => {
+            let _ =
+              sb.getRecordId() |> then_(id => dispatch(GotRecordId(id)) |> resolve) |> catch(err =>
+                {
+                  Js.Console.error2(`Promise for recordid got effed`, err)
+                  ()
+                } |> resolve
+              )
+          })
+        },
         boxIsSelected: selectedBox->Option.isSome,
         noBoxSearchResults: boxesToDisplay->Array.length == 0,
       }

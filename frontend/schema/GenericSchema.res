@@ -363,19 +363,22 @@ let tableFieldDeclBuilder: (
   airtableScalarValueDef,
   string,
   string,
-  option<airtableTableDef>,
-) => (string, string) = (scalarDef, invokeGetField, parentRecordTypeName, maybeRel) => {
+  option<(airtableTableDef, bool)>,
+) => (string, string) = (scalarDef, invokeGetField, parentRecordTypeName, maybeRelDeets) => {
   let {reasonReadReturnTypeName, scalarishFieldBuilderAccessorName} = getScalarTypeContext(
     scalarDef,
   )
+  let (tableSchemaFieldSecondTypeParameter, realAccessorName) =
+    maybeRelDeets->Option.mapWithDefault(
+      (reasonReadReturnTypeName, scalarishFieldBuilderAccessorName),
+      ((rtd, isSingle)) => {
+        let rtnm = getTableNamesContext(rtd).tableRecordTypeName
+        (isSingle ? rtnm : `array<${rtnm}>`, isSingle ? "relSingle" : "relMulti")
+      },
+    )
   (
-    `tableSchemaField<${parentRecordTypeName}, ${maybeRel->Option.mapWithDefault(
-      reasonReadReturnTypeName,
-      rtd => getTableNamesContext(rtd).tableRecordTypeName,
-    )}>`,
-    `${invokeGetField}.${maybeRel->Option.isSome
-      ? "rel"
-      : scalarishFieldBuilderAccessorName}.tableSchemaField`,
+    `tableSchemaField<${parentRecordTypeName}, ${tableSchemaFieldSecondTypeParameter}>`,
+    `${invokeGetField}.${realAccessorName}.tableSchemaField`,
   )
 }
 
@@ -440,7 +443,7 @@ let getFieldMergeVars = (
           scalarFieldDeclBuilder(scalarDef, getFieldInvocation, rawRecordVarName, false),
         ),
         scalarDef,
-        Some(relTableDef),
+        Some(relTableDef, isSingle),
       )
     }
   }

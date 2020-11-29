@@ -239,8 +239,9 @@ type rec scalarishField<'relUpdateParam> = {
   bool: scalarishRecordFieldBuilder<bool>,
   intBool: scalarishRecordFieldBuilder<bool>,
   momentOption: scalarishRecordFieldBuilder<option<airtableMoment>>,
-  // special case
-  rel: scalarishRecordFieldBuilder<'relUpdateParam>,
+  // special cases, used for record field updates -- NOT to be used for GETTING stuff
+  relSingle: scalarishRecordFieldBuilder<'relUpdateParam>,
+  relMulti: scalarishRecordFieldBuilder<array<'relUpdateParam>>,
 }
 and scalarishRecordFieldBuilder<'scalarish> = {
   // utility type for scalarish
@@ -298,7 +299,20 @@ let buildScalarishField: (
   momentOption: scalarishBuilder(rawTable, rawField, getMomentOption, mopt =>
     mopt->Option.mapWithDefault("", moment => moment->format())
   ),
-  rel: scalarishBuilder(rawTable, rawField, (rawRec, _) => rawRec, identity),
+  relSingle: scalarishBuilder(
+    rawTable,
+    rawField,
+    // intentionally fuck this up
+    (_, _) => {id: nullRecordId},
+    rawRec => [{id: rawRec.id}],
+  ),
+  relMulti: scalarishBuilder(
+    rawTable,
+    rawField,
+    // intentionally fuck this up
+    (_, _) => [{id: nullRecordId}],
+    rawRecArr => rawRecArr->Array.map(rawRec => {id: rawRec.id}),
+  ),
 }
 
 external mapScalarishField: scalarishField<'a> => scalarishField<'b> = "%identity"

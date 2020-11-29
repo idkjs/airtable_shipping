@@ -13,6 +13,8 @@ let make = (
 ) => {
   // so this is a hook, remember
   let focusSkuOrderOpt = schema.skuOrder.rel.useRecordById(state.focusOnSkuOrderRecordId)
+  let selectedBoxOpt = schema.box.rel.useRecordById(state.boxForBoxingRecordId)
+  let _ = Js.Console.log(selectedBoxOpt)
 
   <div>
     <Heading> {React.string(`SKU Orders`)} </Heading>

@@ -36,6 +36,7 @@ type skuOrderDialogVars = {
   boxNotesOnChange: (potentialBox, ReactEvent.Form.t) => unit,
   boxesToDisplay: array<potentialBox>,
   selectedBox: option<potentialBox>,
+  loadSelectedBoxId: unit => unit,
   boxIsSelected: bool,
   noBoxSearchResults: bool,
 }
@@ -213,6 +214,7 @@ module BoxSku = {
       dest,
       receivingNotes,
       receivingNotesOnChange,
+      loadSelectedBoxId,
     } = dialogVars
 
     let clearSearchBtn =
@@ -321,7 +323,8 @@ module BoxSku = {
                 header: `Box it`,
                 accessor: pb =>
                   <PrimarySaveButton
-                    onClick=closeCancel style={ReactDOM.Style.make(~padding="10px inherit", ())}>
+                    onClick=loadSelectedBoxId
+                    style={ReactDOM.Style.make(~padding="10px inherit", ())}>
                     {(`Receive ${pb->qtyToBox->Int.toString}`)->s} <br /> {(`into ${pb.name}`)->s}
                   </PrimarySaveButton>,
                 tdStyle: ReactDOM.Style.make(),

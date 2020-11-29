@@ -19,6 +19,7 @@ type action =
   | UpdateBoxSearchString(boxDestinationRecord, string)
   | UpdateQtyToBox(skuOrderRecord, potentialBox, int)
   | UpdateBoxNotes(skuOrderRecord, potentialBox, string)
+  | GotRecordId(recordId<boxRecord>)
 
 type boxStuff = {qty: int, notes: string}
 type state = {
@@ -35,6 +36,7 @@ type state = {
   // box
   boxSearchString: Map.String.t<string>,
   boxStuffMap: Map.String.t<boxStuff>,
+  boxForBoxingRecordId: recordId<boxRecord>,
 }
 
 let initialState: state = {
@@ -47,6 +49,7 @@ let initialState: state = {
   skuSerial: "",
   boxSearchString: Map.String.empty,
   boxStuffMap: Map.String.empty,
+  boxForBoxingRecordId: nullRecordId,
 }
 
 let rec reducer = (state, action) => {
@@ -88,6 +91,10 @@ let rec reducer = (state, action) => {
   | UpdateBoxNotes(skor, pb, notes) => {
       ...state,
       boxStuffMap: mapBoxStuff(state, skor, pb, bs => {...bs, notes: notes})->first,
+    }
+  | GotRecordId(id) => {
+      ...state,
+      boxForBoxingRecordId: id,
     }
   }
   Js.Console.log(rv)
