@@ -298,7 +298,7 @@ let buildScalarishField: (
   momentOption: scalarishBuilder(rawTable, rawField, getMomentOption, mopt =>
     mopt->Option.mapWithDefault("", moment => moment->format())
   ),
-  rel: scalarishBuilder(rawTable, rawField, (rawRec, _) => {id: rawRec.id}, identity),
+  rel: scalarishBuilder(rawTable, rawField, (rawRec, _) => rawRec, identity),
 }
 
 external mapScalarishField: scalarishField<'a> => scalarishField<'b> = "%identity"

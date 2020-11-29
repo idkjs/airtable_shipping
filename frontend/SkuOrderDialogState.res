@@ -110,7 +110,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           dispatch->onChangeHandler(v => UpdateBoxSearchString(dest, v)),
         qtyToBox: state->getQtyToBox(skuOrder),
         qtyToBoxOnChange: pb =>
-          dispatch->onChangeHandler(v => UpdateQtyToBox2(
+          dispatch->onChangeHandler(v => UpdateQtyToBox(
             skuOrder,
             pb,
             v->Int.fromString->Option.mapWithDefault(0, v => {
@@ -127,7 +127,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
             }),
           )),
         boxNotes: state->getBoxNotes(skuOrder),
-        boxNotesOnChange: pb => dispatch->onChangeHandler(v => UpdateBoxNotes2(skuOrder, pb, v)),
+        boxNotesOnChange: pb => dispatch->onChangeHandler(v => UpdateBoxNotes(skuOrder, pb, v)),
         //
         boxesToDisplay: boxesToDisplay,
         selectedBox: selectedBox,
@@ -185,8 +185,8 @@ have a quantity received entered at all, since we are still waiting for it.
         )
       //
 
-      | (Some(_), true, true, Ok(potentialBoxes))
-      | (Some(_), false, false, Ok(potentialBoxes)) =>
+      | (Some(_), true, true, Ok(_))
+      | (Some(_), false, false, Ok(_)) =>
         PutInBox(sovars)
       | (Some(_), _, _, Error(boxDataError)) => DataCorruption(boxDataError)
       | (Some(_), _, _, _) =>

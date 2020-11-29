@@ -1,8 +1,8 @@
 open Belt
 open Schema
 open SchemaDefinition
-open SkuOrderBox
 open Util
+open SkuOrderBox
 
 type action =
   | UpdateSearchString(string)
@@ -17,8 +17,8 @@ type action =
   | UpdateReceivingNotes(string)
   | UpdateSKUSerial(string)
   | UpdateBoxSearchString(boxDestinationRecord, string)
-  | UpdateQtyToBox2(skuOrderRecord, potentialBox, int)
-  | UpdateBoxNotes2(skuOrderRecord, potentialBox, string)
+  | UpdateQtyToBox(skuOrderRecord, potentialBox, int)
+  | UpdateBoxNotes(skuOrderRecord, potentialBox, string)
 
 type boxStuff = {qty: int, notes: string}
 type state = {
@@ -81,11 +81,11 @@ let rec reducer = (state, action) => {
       ...state,
       boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some(s)),
     }
-  | UpdateQtyToBox2(skor, pb, qty) => {
+  | UpdateQtyToBox(skor, pb, qty) => {
       ...state,
       boxStuffMap: mapBoxStuff(state, skor, pb, bs => {...bs, qty: qty})->first,
     }
-  | UpdateBoxNotes2(skor, pb, notes) => {
+  | UpdateBoxNotes(skor, pb, notes) => {
       ...state,
       boxStuffMap: mapBoxStuff(state, skor, pb, bs => {...bs, notes: notes})->first,
     }
