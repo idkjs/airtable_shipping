@@ -40,7 +40,7 @@ type skuOrderDialogVars = {
   isFilteredToSingleBox: bool,
   noBoxSearchResults: bool,
   createNewBox: (potentialBox, unit) => unit,
-  packBox: (boxRecord, int, string, unit) => unit,
+  packBox: (potentialBox, boxRecord, int, string, unit) => unit,
   packingBoxIsLoading: bool,
   packingBox: option<boxRecord>,
 }
@@ -282,7 +282,7 @@ module BoxSku = {
             ]
           />}
       {switch filterToSingleBox {
-      | None => ``->s
+      | None => React.null
       | Some(box) =>
         <div>
           <Subheading> {(`Receive ${sku.skuName.read()} into ${box.name}`)->s} </Subheading>
@@ -341,7 +341,7 @@ module BoxSku = {
                     </SecondarySaveButton>
                   | (Some(reco), _) =>
                     <PrimarySaveButton
-                      onClick={packBox(reco, pb->qtyToBox, pb->boxNotes)}
+                      onClick={packBox(pb, reco, pb->qtyToBox, pb->boxNotes)}
                       style={ReactDOM.Style.make(~padding="10px inherit", ())}>
                       {(`Receive ${pb->qtyToBox->Int.toString}`)->s} <br /> {(`into ${pb.name}`)->s}
                     </PrimarySaveButton>

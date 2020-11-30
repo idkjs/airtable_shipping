@@ -50,7 +50,7 @@ let make = (
         },
       ]
     />
-    {focusedTrackingRecordOpt->Option.mapWithDefault(React.string(""), record =>
+    {focusedTrackingRecordOpt->Option.mapWithDefault(React.null, record =>
       parseRecordState(record, state, dispatch).dialog
     )}
   </div>

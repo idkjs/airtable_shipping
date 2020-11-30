@@ -20,53 +20,44 @@ let make = () => {
       !isSearching || Js.String.includes(searchQuery, record.trackingNumber.read()->trimLower)
     })
 
+  let loadAndWatch: array<airtableRawRecordQueryResult> => unit = arr =>
+    arr->useMultipleQueries->useWatchable([`records`])
+
   // descend 1 level down
-  let _ =
-    trackingRecords->Array.map(tracking => tracking.skuOrders.rel.getRecordsQueryResult([]))
-      |> useMultipleQueries
+  let mapTracking = fn => trackingRecords->Array.map(fn)
+  let _ = mapTracking(tracking => tracking.skuOrders.rel.getRecordsQueryResult([])) |> loadAndWatch
 
   // descend 2 levels
+  let flatMapSkuOrders = fn =>
+    mapTracking(tracking =>
+      tracking.skuOrders.rel.getRecords([])->Array.map(fn)
+    ) |> Array.concatMany
   let _ =
-    trackingRecords->Array.map(tracking =>
-      tracking.skuOrders.rel.getRecords([])->Array.map(skuOrder => [
-        skuOrder.skuOrderSku.rel.getRecordQueryResult(),
-        skuOrder.trackingRecord.rel.getRecordQueryResult(),
-        skuOrder.skuOrderBoxDest.rel.getRecordQueryResult(),
-      ]) |> Array.concatMany
-    )
+    flatMapSkuOrders(skuOrder => [
+      skuOrder.skuOrderSku.rel.getRecordQueryResult(),
+      skuOrder.trackingRecord.rel.getRecordQueryResult(),
+      skuOrder.skuOrderBoxDest.rel.getRecordQueryResult(),
+    ])
     |> Array.concatMany
-    |> useMultipleQueries
+    |> loadAndWatch
 
   // descend 3 levels
+  let flatMapBoxDestination = fn =>
+    flatMapSkuOrders(skuOrder =>
+      skuOrder.skuOrderBoxDest.rel.getRecord()->Option.map(fn)
+    )->Array.keepMap(identity)
   let boxSortParams = [schema.box.boxNumberOnlyField.sortDesc]
   let _ =
-    trackingRecords->Array.map(tracking =>
-      tracking.skuOrders.rel.getRecords([])
-      ->Array.map(skuOrder =>
-        skuOrder.skuOrderBoxDest.rel.getRecord()->Option.map(boxDest =>
-          boxDest.boxes.rel.getRecordsQueryResult(boxSortParams)
-        )
-      )
-      ->Array.keepMap(identity)
-    )
-    |> Array.concatMany
-    |> useMultipleQueries
+    flatMapBoxDestination(boxDest =>
+      boxDest.boxes.rel.getRecordsQueryResult(boxSortParams)
+    ) |> loadAndWatch
 
   // descend 4 levels
-  let _ =
-    trackingRecords->Array.map(tracking =>
-      tracking.skuOrders.rel.getRecords([])
-      ->Array.map(skuOrder =>
-        skuOrder.skuOrderBoxDest.rel.getRecord()->Option.map(boxDest =>
-          boxDest.boxes.rel.getRecords(boxSortParams)->Array.map(box =>
-            box.boxLines.rel.getRecordsQueryResult([])
-          )
-        )
-      )
-      ->Array.keepMap(identity) |> Array.concatMany
-    )
-    |> Array.concatMany
-    |> useMultipleQueries
+  let flatMapBox = fn =>
+    flatMapBoxDestination(boxDest =>
+      boxDest.boxes.rel.getRecords(boxSortParams)->Array.map(fn)
+    ) |> Array.concatMany
+  let _ = flatMapBox(box => box.boxLines.rel.getRecordsQueryResult([])) |> loadAndWatch
 
   let skuOrderRecords: array<skuOrderRecord> = isSearching
   // we don't wanna show shit if we haven't narrowed the results
@@ -85,6 +76,5 @@ let make = () => {
     <SkuOrderTrackingResults state dispatch schema trackingRecords />
     <div style={ReactDOM.Style.make(~marginBottom="26px", ())} />
     <SkuOrderResults state dispatch schema skuOrderRecords />
-    //<PipelineDialog state dispatch schema />
   </div>
 }

@@ -136,10 +136,29 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         noBoxSearchResults: boxesToDisplay->Array.length == 0,
         createNewBox: (pb, _) =>
           dispatch->multi([
+            // we target this box specifically here
+            // if this is the first box for a destination, then it will
+            // mean that we'll stay focused on that first box rather than
+            // bouncing the user back to the box selection dialog, when all
+            // of a sudden their empty search string doesn't isolate a box
+            UpdateBoxSearchString(dest, pb.name),
             UseBox(skuOrder, pb),
             BlindlyPromise(() => pb.getRecordId()->asUnitPromise),
           ]),
-        packBox: (reco, qty, notes, _) => (),
+        packBox: (potentialBox, box, qty, notes, _) =>
+          dispatch->multi([
+            UseBox(skuOrder, potentialBox),
+            BlindlyPromise(
+              () =>
+                schema.boxLine.crud.create([
+                  schema.boxLine.boxRecordField.buildObjectMapComponent(box),
+                  schema.boxLine.boxLineSkuField.buildObjectMapComponent(sku),
+                  schema.boxLine.boxLineSkuOrderField.buildObjectMapComponent(skuOrder),
+                  schema.boxLine.qtyField.buildObjectMapComponent(qty),
+                ])->asUnitPromise,
+            ),
+            BlindlyPromise(() => box.boxNotes.updateAsync(notes)),
+          ]),
         packingBoxIsLoading: state.boxToUseForPacking->Option.isSome &&
           selectedBoxRecordForPacking->Option.isNone,
         packingBox: selectedBoxRecordForPacking,

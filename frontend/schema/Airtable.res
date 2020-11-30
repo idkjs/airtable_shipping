@@ -58,7 +58,16 @@ let useLoadableHook: airtableRawRecordQueryResult => airtableRawRecordQueryResul
   arrqr
 }
 @bs.module("@airtable/blocks/ui")
-external useMultipleQueries: array<airtableRawRecordQueryResult> => unit = "useLoadable"
+external useMultipleQueriesInternal: array<airtableRawRecordQueryResult> => unit = "useLoadable"
+let useMultipleQueries: array<airtableRawRecordQueryResult> => array<
+  airtableRawRecordQueryResult,
+> = arrqr => {
+  useMultipleQueriesInternal(arrqr)
+  arrqr
+}
+
+@bs.module("@airtable/blocks/ui")
+external useWatchable: (array<airtableRawRecordQueryResult>, array<string>) => unit = "useWatchable"
 
 // this is ui thing, but we only use it in here
 module CellRenderer = {

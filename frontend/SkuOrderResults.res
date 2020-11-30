@@ -72,7 +72,7 @@ let make = (
         },
       ]
     />
-    {focusSkuOrderOpt->Option.mapWithDefault(React.string(""), record =>
+    {focusSkuOrderOpt->Option.mapWithDefault(React.null, record =>
       parseRecordState(schema, record, state, dispatch).dialog
     )}
   </div>

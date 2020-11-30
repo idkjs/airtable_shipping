@@ -85,10 +85,12 @@ let rec reducer = (state, action) => {
   | UpdateBoxSearchString(bdr, s) => {
       ...state,
       boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some(s)),
+      boxToUseForPacking: None,
     }
   | ClearBoxSearchString(bdr) => {
       ...state,
       boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some("")),
+      boxToUseForPacking: None,
     }
   | UpdateQtyToBox(skor, pb, qty) => {
       ...state,
