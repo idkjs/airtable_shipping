@@ -1,5 +1,4 @@
 open Belt
-open Util
 open AirtableUI
 open Schema
 open SkuOrderDialogState

@@ -4,6 +4,7 @@ open Schema
 open Belt
 open Reducer
 open SkuOrderBox
+@@warning("-45")
 
 type skuOrderDialogVars = {
   // data

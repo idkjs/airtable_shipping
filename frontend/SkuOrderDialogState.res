@@ -5,6 +5,7 @@ open Belt
 open PipelineDialog
 open SkuOrderDialogs
 open SkuOrderBox
+@@warning("-45")
 
 type stage =
   | DataCorruption(string)
@@ -45,7 +46,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           rcv - skuOrder.quantityPacked.read()
         )
 
-      let potentialBoxes = schema->findPotentialBoxes(skuOrder, dest, unboxedQty)
+      let potentialBoxes = schema->findPotentialBoxes(dest, unboxedQty)
       let boxesToDisplay =
         potentialBoxes->Result.mapWithDefault([], potentialBoxes =>
           potentialBoxes->Array.keep(box => {

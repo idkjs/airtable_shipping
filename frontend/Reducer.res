@@ -3,6 +3,7 @@ open Schema
 open SchemaDefinition
 open Util
 open SkuOrderBox
+@@warning("-45")
 
 type rec action =
   | UpdateSearchString(string)
