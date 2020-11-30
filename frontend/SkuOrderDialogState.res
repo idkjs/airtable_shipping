@@ -39,25 +39,25 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
   | (Some(sku), Some(dest), Some(parent), expectQty) when expectQty > 0 => {
       // welp we've deref'd some important core stuff
 
+      let potentialBoxes = schema->findPotentialBoxes(skuOrder, dest)
       let boxesToDisplay =
-        schema
-        ->findPotentialBoxes(dest)
-        ->Result.mapWithDefault([], potentialBoxes => potentialBoxes->Array.keep(box => {
+        potentialBoxes->Result.mapWithDefault([], potentialBoxes =>
+          potentialBoxes->Array.keep(box => {
             let boxSearchString = state->getSearchString(dest)->trimLower
             boxSearchString == "" || Js.String.includes(boxSearchString, box.name->trimLower)
-          }))
+          })
+        )
 
-      let selectedBox =
-        boxesToDisplay
-        ->Array.get(0)
-        ->Option.flatMap(box => boxesToDisplay->Array.length == 1 ? Some(box) : None)
-
-      /*
-      let boxSomeOfThisSkuOrder = (pbox, qtyToBox)=>{
-        
-
+      let (singleFilteredToBox, selectedBoxRecordForPacking) = switch (
+        boxesToDisplay->Array.get(0),
+        boxesToDisplay->Array.length == 1,
+        boxesToDisplay->Array.get(0)->Option.flatMap(b => b.underlyingRecord),
+      ) {
+      | (Some(pb), true, Some(record)) => (Some(pb), Some(record))
+      | (Some(pb), true, _) => (Some(pb), None)
+      | _ => (None, None)
       }
-*/
+
       let sovars = {
         skuOrder: skuOrder,
         sku: sku,
@@ -65,19 +65,19 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         tracking: parent,
         dispatch: dispatch,
         closeCancel: () => UnfocusOrderRecord->dispatch,
-        persistQtyReceivedFromState: BlindFieldUpdate(
+        persistQtyReceivedFromState: BlindlyPromise(
           () => skuOrder.quantityReceived.updateAsync(state.skuQuantityReceived),
         ),
-        persistQtyReceivedOfOne: BlindFieldUpdate(
+        persistQtyReceivedOfOne: BlindlyPromise(
           () => skuOrder.quantityReceived.updateAsync(Some(1)),
         ),
-        persistReceivingNotesFromState: BlindFieldUpdate(
+        persistReceivingNotesFromState: BlindlyPromise(
           () => skuOrder.receivingNotes.updateAsync(state.skuReceivingNotes),
         ),
-        persistIsReceivedCheckbox: BlindFieldUpdate(
+        persistIsReceivedCheckbox: BlindlyPromise(
           () => skuOrder.skuOrderIsReceived.updateAsync(true),
         ),
-        persistSerialNumberAndSerializedSkuNameFromState: BlindFieldUpdate(
+        persistSerialNumberAndSerializedSkuNameFromState: BlindlyPromise(
           () =>
             if state.skuSerial->serialNumberLooksGood {
               let _ = sku.serialNumber.updateAsync(state.skuSerial)
@@ -108,6 +108,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         boxSearchString: state->getSearchString,
         boxSearchStringOnChange: dest =>
           dispatch->onChangeHandler(v => UpdateBoxSearchString(dest, v)),
+        boxSearchStringClear: (dest, _) => dispatch(ClearBoxSearchString(dest)),
         qtyToBox: state->getQtyToBox(skuOrder),
         qtyToBoxOnChange: pb =>
           dispatch->onChangeHandler(v => UpdateQtyToBox(
@@ -130,28 +131,25 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         boxNotesOnChange: pb => dispatch->onChangeHandler(v => UpdateBoxNotes(skuOrder, pb, v)),
         //
         boxesToDisplay: boxesToDisplay,
-        selectedBox: selectedBox,
-        loadSelectedBoxId: () => {
-          open Js.Promise
-          selectedBox->Option.mapWithDefault((), sb => {
-            let _ =
-              sb.getRecordId() |> then_(id => dispatch(GotRecordId(id)) |> resolve) |> catch(err =>
-                {
-                  Js.Console.error2(`Promise for recordid got effed`, err)
-                  ()
-                } |> resolve
-              )
-          })
-        },
-        boxIsSelected: selectedBox->Option.isSome,
+        filterToSingleBox: singleFilteredToBox,
+        isFilteredToSingleBox: singleFilteredToBox->Option.isSome,
         noBoxSearchResults: boxesToDisplay->Array.length == 0,
+        createNewBox: (pb, _) =>
+          dispatch->multi([
+            UseBox(skuOrder, pb),
+            BlindlyPromise(() => pb.getRecordId()->asUnitPromise),
+          ]),
+        packBox: (reco, qty, notes, _) => (),
+        packingBoxIsLoading: state.boxToUseForPacking->Option.isSome &&
+          selectedBoxRecordForPacking->Option.isNone,
+        packingBox: selectedBoxRecordForPacking,
       }
 
       switch (
         skuOrder.quantityReceived.read(),
         sku.isSerialRequired.read(),
         sku->serialIsEntered && sku->nameIsSerialized,
-        schema->findPotentialBoxes(dest),
+        potentialBoxes,
       ) {
       // a serial number is not required--so let's receive this thing
       | (None, false, _, _) => ReceiveQtyOfSku(sovars)
@@ -195,9 +193,9 @@ Instead of marking anything as received for this SKU, it should just not
 have a quantity received entered at all, since we are still waiting for it.
 `,
         )
-      //
-
+      // serial box with an entered serial and serialized name
       | (Some(_), true, true, Ok(_))
+      // non serial box that doesn't doesn't have a serial and a serialized name
       | (Some(_), false, false, Ok(_)) =>
         PutInBox(sovars)
       | (Some(_), _, _, Error(boxDataError)) => DataCorruption(boxDataError)
@@ -247,6 +245,7 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
       UpdateSKUReceivedQty(Some(skuOrder.quantityExpected.read())),
       UpdateReceivingNotes(skuOrder.receivingNotes.read()),
       UpdateSKUSerial(sku.serialNumber.read()),
+      ClearBoxToUse,
     ])
 
     dumbOpen()

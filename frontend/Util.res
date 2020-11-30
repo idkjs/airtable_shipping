@@ -45,3 +45,8 @@ let unzipFour: array<(('a, 'b), ('c, 'd), ('e, 'f), ('g, 'h))> => (
     arr->Array.map(((_, _, _, d)) => d),
   )
 }
+
+let asUnitPromise: Js.Promise.t<_> => Js.Promise.t<unit> = orig => {
+  open Js.Promise
+  orig |> then_(_ => () |> resolve)
+}

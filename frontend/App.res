@@ -2,6 +2,7 @@ open Schema
 open Reducer
 open Belt
 open Util
+open Airtable
 
 @react.component
 let make = () => {
@@ -13,32 +14,59 @@ let make = () => {
   let trackingRecords: array<skuOrderTrackingRecord> =
     schema.skuOrderTracking.hasTrackingNumbersView.useRecords([
       schema.skuOrderTracking.isReceivedField.sortAsc,
-    ])
-    ->Array.map(sot => {
-      // get in there and USE everything in a big mess of hooks
-      // they should all be loaded up and ready to go when i want to GET
-      // them later
-      // we need to know HOW they are used in ohter functions (e.g. sorts)
-      // this could be put into a function at some point
-      let _ = sot.skuOrders.rel.useRecords([])->Array.map(so => {
-        // we use the sku record from here
-        let _ = so.skuOrderSku.rel.useRecord()
-        // we use the parent from here
-        let _ = so.trackingRecord.rel.useRecord()
-
-        so.skuOrderBoxDest.rel.useRecord()->Option.map(bd =>
-          bd.boxes.rel.useRecords([schema.box.boxNumberOnlyField.sortDesc])->Array.map(bx =>
-            bx.boxLines.rel.useRecords([])
-          )
-        )
-      })
-      sot
-    })
-    ->Array.keep(record => {
+    ])->Array.keep(record => {
       //->Array.map(tracking => (tracking,tracking.skuOrders.useRecords([])))
       // keep everything if we don't have a search string, else get items that include the search query
       !isSearching || Js.String.includes(searchQuery, record.trackingNumber.read()->trimLower)
     })
+
+  // descend 1 level down
+  let _ =
+    trackingRecords->Array.map(tracking => tracking.skuOrders.rel.getRecordsQueryResult([]))
+      |> useMultipleQueries
+
+  // descend 2 levels
+  let _ =
+    trackingRecords->Array.map(tracking =>
+      tracking.skuOrders.rel.getRecords([])->Array.map(skuOrder => [
+        skuOrder.skuOrderSku.rel.getRecordQueryResult(),
+        skuOrder.trackingRecord.rel.getRecordQueryResult(),
+        skuOrder.skuOrderBoxDest.rel.getRecordQueryResult(),
+      ]) |> Array.concatMany
+    )
+    |> Array.concatMany
+    |> useMultipleQueries
+
+  // descend 3 levels
+  let boxSortParams = [schema.box.boxNumberOnlyField.sortDesc]
+  let _ =
+    trackingRecords->Array.map(tracking =>
+      tracking.skuOrders.rel.getRecords([])
+      ->Array.map(skuOrder =>
+        skuOrder.skuOrderBoxDest.rel.getRecord()->Option.map(boxDest =>
+          boxDest.boxes.rel.getRecordsQueryResult(boxSortParams)
+        )
+      )
+      ->Array.keepMap(identity)
+    )
+    |> Array.concatMany
+    |> useMultipleQueries
+
+  // descend 4 levels
+  let _ =
+    trackingRecords->Array.map(tracking =>
+      tracking.skuOrders.rel.getRecords([])
+      ->Array.map(skuOrder =>
+        skuOrder.skuOrderBoxDest.rel.getRecord()->Option.map(boxDest =>
+          boxDest.boxes.rel.getRecords(boxSortParams)->Array.map(box =>
+            box.boxLines.rel.getRecordsQueryResult([])
+          )
+        )
+      )
+      ->Array.keepMap(identity) |> Array.concatMany
+    )
+    |> Array.concatMany
+    |> useMultipleQueries
 
   let skuOrderRecords: array<skuOrderRecord> = isSearching
   // we don't wanna show shit if we haven't narrowed the results

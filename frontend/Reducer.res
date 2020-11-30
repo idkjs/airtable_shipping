@@ -4,12 +4,12 @@ open SchemaDefinition
 open Util
 open SkuOrderBox
 
-type action =
+type rec action =
   | UpdateSearchString(string)
   | FocusOnTrackingRecord(skuOrderTrackingRecord)
   | UnfocusTrackingRecord
   // maybe not used
-  | BlindFieldUpdate(unit => Js.Promise.t<unit>)
+  | BlindlyPromise(unit => Js.Promise.t<unit>)
   | UpdateWarehouseNotes(string)
   | FocusOnOrderRecord(skuOrderRecord)
   | UnfocusOrderRecord
@@ -17,11 +17,13 @@ type action =
   | UpdateReceivingNotes(string)
   | UpdateSKUSerial(string)
   | UpdateBoxSearchString(boxDestinationRecord, string)
+  | ClearBoxSearchString(boxDestinationRecord)
   | UpdateQtyToBox(skuOrderRecord, potentialBox, int)
   | UpdateBoxNotes(skuOrderRecord, potentialBox, string)
-  | GotRecordId(recordId<boxRecord>)
+  | UseBox(skuOrderRecord, potentialBox)
+  | ClearBoxToUse
+and boxStuff = {name: string, qty: int, notes: string}
 
-type boxStuff = {qty: int, notes: string}
 type state = {
   // search for tracking
   searchString: string,
@@ -36,7 +38,7 @@ type state = {
   // box
   boxSearchString: Map.String.t<string>,
   boxStuffMap: Map.String.t<boxStuff>,
-  boxForBoxingRecordId: recordId<boxRecord>,
+  boxToUseForPacking: option<boxStuff>,
 }
 
 let initialState: state = {
@@ -49,7 +51,7 @@ let initialState: state = {
   skuSerial: "",
   boxSearchString: Map.String.empty,
   boxStuffMap: Map.String.empty,
-  boxForBoxingRecordId: nullRecordId,
+  boxToUseForPacking: None,
 }
 
 let rec reducer = (state, action) => {
@@ -59,7 +61,7 @@ let rec reducer = (state, action) => {
   | UnfocusTrackingRecord => {...state, focusOnTrackingRecordId: nullRecordId}
   | FocusOnOrderRecord(so) => {...state, focusOnSkuOrderRecordId: so.id}
   | UnfocusOrderRecord => {...state, focusOnSkuOrderRecordId: nullRecordId}
-  | BlindFieldUpdate(fn) => {
+  | BlindlyPromise(fn) => {
       //execute
       let _ = fn()
       state
@@ -84,6 +86,10 @@ let rec reducer = (state, action) => {
       ...state,
       boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some(s)),
     }
+  | ClearBoxSearchString(bdr) => {
+      ...state,
+      boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some("")),
+    }
   | UpdateQtyToBox(skor, pb, qty) => {
       ...state,
       boxStuffMap: mapBoxStuff(state, skor, pb, bs => {...bs, qty: qty})->first,
@@ -92,9 +98,14 @@ let rec reducer = (state, action) => {
       ...state,
       boxStuffMap: mapBoxStuff(state, skor, pb, bs => {...bs, notes: notes})->first,
     }
-  | GotRecordId(id) => {
+
+  | UseBox(skor, pb) => {
       ...state,
-      boxForBoxingRecordId: id,
+      boxToUseForPacking: Some(mapBoxStuff(state, skor, pb, identity)->second),
+    }
+  | ClearBoxToUse => {
+      ...state,
+      boxToUseForPacking: None,
     }
   }
   Js.Console.log(rv)
@@ -111,7 +122,7 @@ and mapBoxStuff: (
   let dict =
     state.boxStuffMap->Map.String.update(k, bsopt => Some(
       bsopt->Option.mapWithDefault(
-        {qty: skor.quantityExpected.read(), notes: pb.notes}->mapFn,
+        {name: pb.name, qty: pb.unboxedQty, notes: pb.notes}->mapFn,
         mapFn,
       ),
     ))

@@ -8,7 +8,9 @@ type potentialBox = {
   status: string,
   isEmpty: bool,
   notes: string,
+  unboxedQty: int,
   getRecordId: unit => Js.Promise.t<recordId<boxRecord>>,
+  underlyingRecord: option<boxRecord>,
 }
 
 let formatBoxNameWithNumber: (boxDestinationRecord, int) => string = (bdr, i) => {
@@ -22,11 +24,15 @@ let formatBoxNameWithNumber: (boxDestinationRecord, int) => string = (bdr, i) =>
   `${bdr.destinationPrefix.read()}-${paddedNumber}`
 }
 
-let findPotentialBoxes: (schema, boxDestinationRecord) => result<array<potentialBox>, string> = (
+let findPotentialBoxes: (
   schema,
-  bdr,
-) => {
+  skuOrderRecord,
+  boxDestinationRecord,
+) => result<array<potentialBox>, string> = (schema, skor, bdr) => {
   let boxes = bdr.boxes.rel.getRecords([schema.box.boxNumberOnlyField.sortDesc])
+
+  let unboxedQty =
+    skor.quantityReceived.read()->Option.mapWithDefault(0, rcv => rcv - skor.quantityPacked.read())
 
   let presentBoxNumbers = Set.Int.fromArray(boxes->Array.map(box => box.boxNumberOnly.read()))
   let expectedBoxNumbers =
@@ -47,7 +53,9 @@ let findPotentialBoxes: (schema, boxDestinationRecord) => result<array<potential
     },
     isEmpty: real.isEmpty.read(),
     notes: real.boxNotes.read(),
+    unboxedQty: unboxedQty,
     getRecordId: () => Js.Promise.resolve(real.id),
+    underlyingRecord: Some(real),
   }
 
   // i want the symmetric difference -- everything that's not
@@ -101,14 +109,15 @@ We didn't expect to see the following box numbers: [${presentButNotExpected->toN
           status: `🆕 NEW 🆕`,
           notes: `Created by Receiving Tool`,
           isEmpty: true,
+          unboxedQty: unboxedQty,
           getRecordId: () => {
-            let _ = Js.Console.error(bdr)
             schema.box.crud.create([
               schema.box.boxNumberOnlyField.buildObjectMapComponent(newNumber),
               schema.box.boxDestField.buildObjectMapComponent(bdr),
               schema.box.boxNotesField.buildObjectMapComponent(`Created by Receiving Tool`),
             ])
           },
+          underlyingRecord: None,
         }
       }
       let (empties, fullies) = if boxes->Array.length > 2 {

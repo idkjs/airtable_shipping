@@ -126,6 +126,9 @@ type veryGenericQueryable<'qType> = {
   // query specific
   getRecordById: string => option<'qType>,
   useRecordById: string => option<'qType>,
+  // query complex
+  getQueryResultSingle: unit => airtableRawRecordQueryResult,
+  getQueryResultMulti: array<airtableRawSortParam> => airtableRawRecordQueryResult,
 }
 
 // everything from airtable comes back as a query result if you want it that way
@@ -142,6 +145,8 @@ let buildVGQ: (array<airtableRawSortParam> => airtableRawRecordQueryResult) => v
     useRecord: () => []->getQ->useQueryResult(true)->Array.get(0),
     getRecordById: str => []->getQ->getRecordById(str),
     useRecordById: str => []->getQ->useLoadableHook->getRecordById(str),
+    getQueryResultSingle: () => []->getQ,
+    getQueryResultMulti: params => params->getQ,
   }
 }
 
@@ -155,12 +160,15 @@ let mapVGQ: (veryGenericQueryable<'a>, 'a => 'b) => veryGenericQueryable<'b> = (
   useRecords: p => orig.useRecords(p)->Array.map(map),
   getRecordById: p => orig.getRecordById(p)->Option.map(map),
   useRecordById: p => orig.useRecordById(p)->Option.map(map),
+  getQueryResultSingle: orig.getQueryResultSingle,
+  getQueryResultMulti: orig.getQueryResultMulti,
 }
 
 type recordSortParam<'recordT> = airtableRawSortParam
 type singleRelField<'relT> = {
   getRecord: unit => option<'relT>,
   useRecord: unit => option<'relT>,
+  getRecordQueryResult: unit => airtableRawRecordQueryResult,
 }
 type recordId<'relT> = string
 let nullRecordId: recordId<'relT> = ""
@@ -170,6 +178,7 @@ type multipleRelField<'relT> = {
   useRecords: array<recordSortParam<'relT>> => array<'relT>,
   getRecordById: recordId<'relT> => option<'relT>,
   useRecordById: recordId<'relT> => option<'relT>,
+  getRecordsQueryResult: array<recordSortParam<'relT>> => airtableRawRecordQueryResult,
 }
 
 let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelField<'relT> = vgq => {
@@ -177,10 +186,12 @@ let asMultipleRelField: veryGenericQueryable<'relT> => multipleRelField<'relT> =
   useRecords: vgq.useRecords,
   getRecordById: vgq.getRecordById,
   useRecordById: vgq.useRecordById,
+  getRecordsQueryResult: vgq.getQueryResultMulti,
 }
 let asSingleRelField: veryGenericQueryable<'relT> => singleRelField<'relT> = vgq => {
   getRecord: vgq.getRecord,
   useRecord: vgq.useRecord,
+  getRecordQueryResult: vgq.getQueryResultSingle,
 }
 
 type recordCreateUpdateParam<'recordT> = airtableObjectMapComponent

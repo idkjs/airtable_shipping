@@ -22,15 +22,15 @@ let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTr
     dispatch(UpdateWarehouseNotes(""))
   }
   let saveWarehouseNotesAndClose = () => {
-    dispatch(BlindFieldUpdate(() => sotr.warehouseNotes.updateAsync(state.warehouseNotes)))
+    dispatch(BlindlyPromise(() => sotr.warehouseNotes.updateAsync(state.warehouseNotes)))
     dialogClose()
   }
   let receiveTrackingNumberSaveNotesAndClose = () => {
-    dispatch(BlindFieldUpdate(() => sotr.receivedTime.updateAsync(Some(nowMoment()))))
+    dispatch(BlindlyPromise(() => sotr.receivedTime.updateAsync(Some(nowMoment()))))
     saveWarehouseNotesAndClose()
   }
   let unreceiveTrackingNumberSaveNotesAndClose = () => {
-    dispatch(BlindFieldUpdate(() => sotr.receivedTime.updateAsync(None)))
+    dispatch(BlindlyPromise(() => sotr.receivedTime.updateAsync(None)))
     saveWarehouseNotesAndClose()
   }
 

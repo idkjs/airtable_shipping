@@ -30,15 +30,19 @@ type skuOrderDialogVars = {
   serialNumberOnChange: ReactEvent.Form.t => unit,
   boxSearchString: boxDestinationRecord => string,
   boxSearchStringOnChange: (boxDestinationRecord, ReactEvent.Form.t) => unit,
+  boxSearchStringClear: (boxDestinationRecord, unit) => unit,
   qtyToBox: potentialBox => int,
   qtyToBoxOnChange: (potentialBox, ReactEvent.Form.t) => unit,
   boxNotes: potentialBox => string,
   boxNotesOnChange: (potentialBox, ReactEvent.Form.t) => unit,
   boxesToDisplay: array<potentialBox>,
-  selectedBox: option<potentialBox>,
-  loadSelectedBoxId: unit => unit,
-  boxIsSelected: bool,
+  filterToSingleBox: option<potentialBox>,
+  isFilteredToSingleBox: bool,
   noBoxSearchResults: bool,
+  createNewBox: (potentialBox, unit) => unit,
+  packBox: (boxRecord, int, string, unit) => unit,
+  packingBoxIsLoading: bool,
+  packingBox: option<boxRecord>,
 }
 
 module ReceiveUnserialedSku = {
@@ -208,19 +212,21 @@ module BoxSku = {
       boxNotes,
       boxNotesOnChange,
       boxesToDisplay,
-      selectedBox,
-      boxIsSelected,
+      filterToSingleBox,
+      isFilteredToSingleBox,
       noBoxSearchResults,
       dest,
       receivingNotes,
       receivingNotesOnChange,
-      loadSelectedBoxId,
+      createNewBox,
+      packingBox,
+      packingBoxIsLoading,
+      packBox,
+      boxSearchStringClear,
     } = dialogVars
 
     let clearSearchBtn =
-      <CancelButton onClick={() => UpdateBoxSearchString(dest, "")->dispatch}>
-        {`Clear Search`->s}
-      </CancelButton>
+      <CancelButton onClick={boxSearchStringClear(dest)}> {`Clear Search`->s} </CancelButton>
 
     <PipelineDialog
       header={`Box ${sku.skuName.read()}`}
@@ -264,7 +270,7 @@ module BoxSku = {
               {
                 header: `Action`,
                 accessor: box => {
-                  boxIsSelected
+                  isFilteredToSingleBox
                     ? clearSearchBtn
                     : <PrimarySaveButton
                         onClick={() => UpdateBoxSearchString(dest, box.name)->dispatch}>
@@ -275,7 +281,7 @@ module BoxSku = {
               },
             ]
           />}
-      {switch selectedBox {
+      {switch filterToSingleBox {
       | None => ``->s
       | Some(box) =>
         <div>
@@ -291,10 +297,7 @@ module BoxSku = {
               },
               {
                 header: `Qty Unboxed`,
-                accessor: _ =>
-                  skuOrder.quantityReceived.read()
-                  ->Option.mapWithDefault(0, rcv => rcv - skuOrder.quantityPacked.read())
-                  ->itos,
+                accessor: pb => pb.unboxedQty->itos,
                 tdStyle: ReactDOM.Style.make(~fontSize="1.7em", ~textAlign="center", ()),
               },
               {
@@ -321,12 +324,29 @@ module BoxSku = {
               },
               {
                 header: `Box it`,
-                accessor: pb =>
-                  <PrimarySaveButton
-                    onClick=loadSelectedBoxId
-                    style={ReactDOM.Style.make(~padding="10px inherit", ())}>
-                    {(`Receive ${pb->qtyToBox->Int.toString}`)->s} <br /> {(`into ${pb.name}`)->s}
-                  </PrimarySaveButton>,
+                accessor: pb => {
+                  switch (pb.underlyingRecord, packingBoxIsLoading) {
+                  | (None, false) =>
+                    <SecondarySaveButton
+                      onClick={createNewBox(pb)}
+                      style={ReactDOM.Style.make(~padding="10px inherit", ())}>
+                      {(`Create box ${pb.name}`)->s}
+                    </SecondarySaveButton>
+                  | (None, true) =>
+                    <SecondarySaveButton
+                      disabled=true
+                      onClick={() => ()}
+                      style={ReactDOM.Style.make(~padding="10px inherit", ())}>
+                      {`...Loading...`->s}
+                    </SecondarySaveButton>
+                  | (Some(reco), _) =>
+                    <PrimarySaveButton
+                      onClick={packBox(reco, pb->qtyToBox, pb->boxNotes)}
+                      style={ReactDOM.Style.make(~padding="10px inherit", ())}>
+                      {(`Receive ${pb->qtyToBox->Int.toString}`)->s} <br /> {(`into ${pb.name}`)->s}
+                    </PrimarySaveButton>
+                  }
+                },
                 tdStyle: ReactDOM.Style.make(),
               },
             ]
