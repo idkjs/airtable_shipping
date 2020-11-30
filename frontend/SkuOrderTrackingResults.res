@@ -3,6 +3,8 @@ open Util
 open AirtableUI
 open Schema
 open SkuOrderTrackingDialog
+open PipelineDialog
+open Reducer
 
 @react.component
 let make = (
@@ -42,6 +44,15 @@ let make = (
           header: `Warehouse Notes`,
           accessor: record => record.warehouseNotes.render(),
           tdStyle: ReactDOM.Style.make(~width="35%", ()),
+        },
+        {
+          header: `🔎 🕵️ 🔬 🔍`,
+          accessor: record =>
+            <SecondaryActionButton
+              onClick={() => dispatch(UpdateSearchString(record.trackingNumber.read()))}>
+              {`Focus`->s}
+            </SecondaryActionButton>,
+          tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
         },
         {
           header: `Action`,
