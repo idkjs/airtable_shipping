@@ -69,6 +69,13 @@ module PrimaryActionButton = {
       {children}
     </Button>
 }
+module SecondaryActionButton = {
+  @react.component
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element, ~style=?) =>
+    <Button onClick ?disabled icon="check" size="large" variant="default" ?style>
+      {children}
+    </Button>
+}
 module PrimarySaveButton = {
   @react.component
   let make = (~onClick: unit => _, ~disabled=?, ~children: React.element, ~style=?) =>

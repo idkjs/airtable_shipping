@@ -15,6 +15,7 @@ type skuOrderDialogVars = {
   dispatch: action => unit,
   closeCancel: unit => unit,
   dialogClose: action,
+  boxSearchClear: action,
   persistQtyReceivedFromState: action,
   persistQtyReceivedOfOne: action,
   persistReceivingNotesFromState: action,
@@ -28,9 +29,8 @@ type skuOrderDialogVars = {
   serialNumber: string,
   serialNumberLooksGood: bool,
   serialNumberOnChange: ReactEvent.Form.t => unit,
-  boxSearchString: boxDestinationRecord => string,
-  boxSearchStringOnChange: (boxDestinationRecord, ReactEvent.Form.t) => unit,
-  boxSearchStringClear: (boxDestinationRecord, unit) => unit,
+  boxSearchString: string,
+  boxSearchStringOnChange: ReactEvent.Form.t => unit,
   qtyToBox: potentialBox => int,
   qtyToBoxOnChange: (potentialBox, ReactEvent.Form.t) => unit,
   boxNotes: potentialBox => string,
@@ -222,11 +222,11 @@ module BoxSku = {
       packingBox,
       packingBoxIsLoading,
       packBox,
-      boxSearchStringClear,
+      boxSearchClear,
     } = dialogVars
 
     let clearSearchBtn =
-      <CancelButton onClick={boxSearchStringClear(dest)}> {`Clear Search`->s} </CancelButton>
+      <CancelButton onClick={() => dispatch(boxSearchClear)}> {`Clear Search`->s} </CancelButton>
 
     <PipelineDialog
       header={`Box ${sku.skuName.read()}`}
@@ -234,9 +234,9 @@ module BoxSku = {
       closeCancel>
       <Subheading> {`Narrow Box Results`->s} </Subheading>
       <input
-        onChange={dest->boxSearchStringOnChange}
+        onChange={boxSearchStringOnChange}
         type_="text"
-        value={dest->boxSearchString}
+        value={boxSearchString}
         style={ReactDOM.Style.make(~fontSize="1.5em", ~width="400px", ())}
       />
       {clearSearchBtn}
@@ -365,17 +365,76 @@ module BoxSku = {
   }
 }
 
-module Temp = {
+module SpectatePackedBoxes = {
   @react.component
-  let make = (~closeCancel: unit => _) =>
+  let make = (
+    ~dialogVars: skuOrderDialogVars,
+    ~boxesToSpectate: array<boxRecord>,
+    ~isThereMoreToBox: bool,
+  ) => {
+    let {
+      closeCancel,
+      boxSearchClear,
+      receivingNotes,
+      receivingNotesOnChange,
+      persistReceivingNotesFromState,
+      dispatch,
+      dialogClose,
+    } = dialogVars
+    let packedInNBoxes = boxesToSpectate->Array.length
     <PipelineDialog
-      header=`beep`
-      actionButtons=[
-        <CancelButton onClick=closeCancel> {s(`Ok, We'll Fix It 😔`)} </CancelButton>,
-      ]
+      header={`This SKU Order is Packed into ${packedInNBoxes->Int.toString} Box(es)`}
+      actionButtons={[
+        <CancelButton onClick=closeCancel> {s(`Close Window`)} </CancelButton>,
+        isThereMoreToBox
+          ? <PrimaryActionButton
+              onClick={() => dispatch->multi([persistReceivingNotesFromState, boxSearchClear])}>
+              {s(`Save Notes & Keep Boxing This SKU Order`)}
+            </PrimaryActionButton>
+          : <SecondaryActionButton
+              onClick={() => dispatch->multi([persistReceivingNotesFromState, dialogClose])}>
+              {s(`Save And Close`)}
+            </SecondaryActionButton>,
+      ]}
       closeCancel>
-      <Subheading> {`DER`->s} </Subheading>
+      <div> {boxesToSpectate->Array.mapWithIndex((idx, box) =>
+          <div>
+            <Subheading>
+              {(`Box ${(idx + 1)->Int.toString} of ${packedInNBoxes->Int.toString}`)->s}
+            </Subheading>
+            <Table
+              rowId={boxLine => boxLine.name.read()}
+              elements={box.boxLines.rel.getRecords([])}
+              columnDefs=[
+                {
+                  header: `Box`,
+                  accessor: bl => bl.boxRecord.scalar.render(),
+                  tdStyle: ReactDOM.Style.make(),
+                },
+                {
+                  header: `Sku`,
+                  accessor: bl => bl.boxLineSku.scalar.render(),
+                  tdStyle: ReactDOM.Style.make(),
+                },
+                {
+                  header: `Qty`,
+                  accessor: bl => bl.qty.render(),
+                  tdStyle: ReactDOM.Style.make(),
+                },
+              ]
+            />
+            <VSpace px=20 />
+          </div>
+        )->React.array} <Subheading>
+          {`Review/Edit Receiving Notes for this entire SKUOrder`->s}
+        </Subheading> <textarea
+          style={ReactDOM.Style.make(~width="100%", ())}
+          value=receivingNotes
+          onChange=receivingNotesOnChange
+          rows=6
+        /> <VSpace px=40 /> </div>
     </PipelineDialog>
+  }
 }
 
 module DataCorruption = {

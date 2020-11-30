@@ -28,11 +28,9 @@ let findPotentialBoxes: (
   schema,
   skuOrderRecord,
   boxDestinationRecord,
-) => result<array<potentialBox>, string> = (schema, skor, bdr) => {
+  int,
+) => result<array<potentialBox>, string> = (schema, skor, bdr, unboxedQty) => {
   let boxes = bdr.boxes.rel.getRecords([schema.box.boxNumberOnlyField.sortDesc])
-
-  let unboxedQty =
-    skor.quantityReceived.read()->Option.mapWithDefault(0, rcv => rcv - skor.quantityPacked.read())
 
   let presentBoxNumbers = Set.Int.fromArray(boxes->Array.map(box => box.boxNumberOnly.read()))
   let expectedBoxNumbers =

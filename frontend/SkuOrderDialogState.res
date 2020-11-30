@@ -11,6 +11,7 @@ type stage =
   | ReceiveQtyOfSku(skuOrderDialogVars)
   | CollectSerialNumberAndReceive1(skuOrderDialogVars)
   | PutInBox(skuOrderDialogVars)
+  | SpectatePackedBoxes(skuOrderDialogVars, array<boxRecord>, bool)
 
 let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
   schema,
@@ -39,7 +40,12 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
   | (Some(sku), Some(dest), Some(parent), expectQty) when expectQty > 0 => {
       // welp we've deref'd some important core stuff
 
-      let potentialBoxes = schema->findPotentialBoxes(skuOrder, dest)
+      let unboxedQty =
+        skuOrder.quantityReceived.read()->Option.mapWithDefault(0, rcv =>
+          rcv - skuOrder.quantityPacked.read()
+        )
+
+      let potentialBoxes = schema->findPotentialBoxes(skuOrder, dest, unboxedQty)
       let boxesToDisplay =
         potentialBoxes->Result.mapWithDefault([], potentialBoxes =>
           potentialBoxes->Array.keep(box => {
@@ -105,10 +111,9 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         serialNumber: state.skuSerial,
         serialNumberLooksGood: state.skuSerial->serialNumberLooksGood,
         serialNumberOnChange: dispatch->onChangeHandler(v => UpdateSKUSerial(v)),
-        boxSearchString: state->getSearchString,
-        boxSearchStringOnChange: dest =>
-          dispatch->onChangeHandler(v => UpdateBoxSearchString(dest, v)),
-        boxSearchStringClear: (dest, _) => dispatch(ClearBoxSearchString(dest)),
+        boxSearchString: state->getSearchString(dest),
+        boxSearchStringOnChange: dispatch->onChangeHandler(v => UpdateBoxSearchString(dest, v)),
+        boxSearchClear: ClearBoxSearchString(dest),
         qtyToBox: state->getQtyToBox(skuOrder),
         qtyToBoxOnChange: pb =>
           dispatch->onChangeHandler(v => UpdateQtyToBox(
@@ -158,6 +163,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
                 ])->asUnitPromise,
             ),
             BlindlyPromise(() => box.boxNotes.updateAsync(notes)),
+            DidJustPackABox,
           ]),
         packingBoxIsLoading: state.boxToUseForPacking->Option.isSome &&
           selectedBoxRecordForPacking->Option.isNone,
@@ -212,11 +218,34 @@ Instead of marking anything as received for this SKU, it should just not
 have a quantity received entered at all, since we are still waiting for it.
 `,
         )
-      // serial box with an entered serial and serialized name
-      | (Some(_), true, true, Ok(_))
+
+      | (Some(qtyMarkedReceived), true, true, Ok(_))
       // non serial box that doesn't doesn't have a serial and a serialized name
-      | (Some(_), false, false, Ok(_)) =>
-        PutInBox(sovars)
+      | (Some(qtyMarkedReceived), false, false, Ok(_)) => {
+          let boxesWithThisSkuOrder =
+            skuOrder.skuOrderBoxLines.rel.getRecords([])
+            ->Array.map(boxLine => boxLine.boxRecord.rel.getRecord())
+            ->Array.keepMap(identity)
+
+          switch (unboxedQty, state.didJustPackABox) {
+          // shouldn't have less than 0 things to receive--it was overpacked
+          // if there is something left to box, then show that dialog
+          | (ub, false) when ub > 0 => PutInBox(sovars)
+          | (ub, true) => SpectatePackedBoxes(sovars, boxesWithThisSkuOrder, ub > 0)
+          | (ub, _) when ub == 0 => SpectatePackedBoxes(sovars, boxesWithThisSkuOrder, ub > 0)
+          | _ =>
+            DataCorruption(
+              `This box seems to have been 
+overpacked. There are more items packed than were initially received. 
+
+Count of received: ${qtyMarkedReceived->Int.toString}
+Count of packed: ${skuOrder.quantityPacked.read()->Int.toString}
+
+This will need to be resolved before continuing to work on this skuorder.
+`,
+            )
+          }
+        }
       | (Some(_), _, _, Error(boxDataError)) => DataCorruption(boxDataError)
       | (Some(_), _, _, _) =>
         DataCorruption(
@@ -256,7 +285,7 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
   let recordStatus = recordStatus(schema, sor, state, dispatch)
 
   let dumbOpen = () => dispatch(FocusOnOrderRecord(sor))
-  let closeCancel = () => dispatch(UnfocusOrderRecord)
+  let closeCancel = () => dispatch->multi([UnfocusOrderRecord, ClearJustPackedABox])
 
   let realOpen = ({skuOrder, sku}, ()) => {
     let _ = // reset all the core values to their defaults for this order
@@ -265,6 +294,7 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
       UpdateReceivingNotes(skuOrder.receivingNotes.read()),
       UpdateSKUSerial(sku.serialNumber.read()),
       ClearBoxToUse,
+      ClearJustPackedABox,
     ])
 
     dumbOpen()
@@ -281,12 +311,16 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
       </PrimaryActionButton>
     | PutInBox(sov) =>
       <PrimaryActionButton onClick={realOpen(sov)}> {"Box Item"->s} </PrimaryActionButton>
+    | SpectatePackedBoxes(sov, _, _) =>
+      <EditButton onClick={realOpen(sov)}> {s(`View/Edit Packed Box(es)`)} </EditButton>
     },
     dialog: switch recordStatus {
     | DataCorruption(msg) => <DataCorruption closeCancel formattedErrorText=msg />
     | ReceiveQtyOfSku(dialogVars) => <ReceiveUnserialedSku dialogVars />
     | CollectSerialNumberAndReceive1(dialogVars) => <ReceiveSerialedSku dialogVars />
     | PutInBox(dialogVars) => <BoxSku dialogVars />
+    | SpectatePackedBoxes(dialogVars, boxesToSpectate, isThereMoreToBox) =>
+      <SpectatePackedBoxes dialogVars boxesToSpectate isThereMoreToBox />
     },
   }
 }

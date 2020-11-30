@@ -37,6 +37,7 @@ let make = () => {
       skuOrder.skuOrderSku.rel.getRecordQueryResult(),
       skuOrder.trackingRecord.rel.getRecordQueryResult(),
       skuOrder.skuOrderBoxDest.rel.getRecordQueryResult(),
+      skuOrder.skuOrderBoxLines.rel.getRecordsQueryResult([]),
     ])
     |> Array.concatMany
     |> loadAndWatch
@@ -59,6 +60,11 @@ let make = () => {
     ) |> Array.concatMany
   let _ = flatMapBox(box => box.boxLines.rel.getRecordsQueryResult([])) |> loadAndWatch
 
+  // descend 5 levels
+  let flatMapBoxLine = fn =>
+    flatMapBox(box => box.boxLines.rel.getRecords([])->Array.map(fn)) |> Array.concatMany
+  let _ = flatMapBoxLine(ln => ln.boxRecord.rel.getRecordQueryResult()) |> loadAndWatch
+
   let skuOrderRecords: array<skuOrderRecord> = isSearching
   // we don't wanna show shit if we haven't narrowed the results
   // can only show sku orders for received tracking numbers
@@ -75,6 +81,8 @@ let make = () => {
     <div style={ReactDOM.Style.make(~marginBottom="26px", ())} />
     <SkuOrderTrackingResults state dispatch schema trackingRecords />
     <div style={ReactDOM.Style.make(~marginBottom="26px", ())} />
-    <SkuOrderResults state dispatch schema skuOrderRecords />
+    {skuOrderRecords->Array.length > 0
+      ? <SkuOrderResults state dispatch schema skuOrderRecords />
+      : React.null}
   </div>
 }

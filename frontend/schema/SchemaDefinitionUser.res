@@ -26,7 +26,7 @@ let rec skuOrdersTrackingTable: airtableTableDef = {
       fieldValueType: FormulaRollupRO(IntAsBool),
     },
     {
-      resolutionMethod: ByName(`Date Received`),
+      resolutionMethod: ByName(`Date Received (GTG)`),
       camelCaseFieldName: `receivedTime`,
       fieldValueType: ScalarRW(MomentOption),
     },
@@ -61,6 +61,11 @@ and skuOrdersTable: airtableTableDef = {
       resolutionMethod: ByName(`SKU`),
       camelCaseFieldName: `skuOrderSku`,
       fieldValueType: RelFieldOption(skusTable, true, BareString),
+    },
+    {
+      resolutionMethod: ByName(`Box Line(s)`),
+      camelCaseFieldName: `skuOrderBoxLines`,
+      fieldValueType: RelFieldOption(boxLinesTable, false, BareString),
     },
     {
       resolutionMethod: ByName(`Onboard Destination`),
