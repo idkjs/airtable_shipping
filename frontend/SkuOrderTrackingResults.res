@@ -38,7 +38,7 @@ let make = (
         {
           header: `Ship Date`,
           accessor: record => record.shipDate.render(),
-          tdStyle: ReactDOM.Style.make(~width="35%", ()),
+          tdStyle: ReactDOM.Style.make(),
         },
         {
           header: `JoCo Notes`,

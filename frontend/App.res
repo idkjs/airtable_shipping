@@ -72,15 +72,17 @@ let make = () => {
     |> Array.concatMany
     |> loadAndWatch
 
-  let skuOrderRecords: array<skuOrderRecord> =
-    trackingRecords->Array.length == 1
-    // we don't wanna show shit if we haven't narrowed the results
-    // can only show sku orders for received tracking numbers
-      ? trackingRecords
-        ->Array.keep(sot => sot.isReceived.read())
-        ->Array.map(sot => sot.skuOrders.rel.getRecords([]))
-        ->Array.concatMany
-      : []
+  let isFocusedOnTracking = trackingRecords->Array.length == 1
+  let skuOrderRecords: array<skuOrderRecord> = isFocusedOnTracking
+  // we don't wanna show shit if we haven't narrowed the results
+  // can only show sku orders for received tracking numbers
+    ? trackingRecords
+      ->Array.keep(sot => sot.isReceived.read())
+      ->Array.map(sot => sot.skuOrders.rel.getRecords([]))
+      ->Array.concatMany
+    : []
+
+  let noResultsForFocusedTrackingId = isFocusedOnTracking && skuOrderRecords->Array.length == 0
 
   //Js.Console.log(skuOrderRecords)
 
@@ -91,6 +93,10 @@ let make = () => {
     <div style={ReactDOM.Style.make(~marginBottom="26px", ())} />
     {skuOrderRecords->Array.length > 0
       ? <SkuOrderResults state dispatch schema skuOrderRecords />
+      : noResultsForFocusedTrackingId
+      ? <p style={ReactDOM.Style.make(~fontSize="16px", ~color="red", ())}>
+        {`No skus are listed for this tracking number. If this is an error, get in touch! :)`->s}
+      </p>
       : React.null}
   </div>
 }
