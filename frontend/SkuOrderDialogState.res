@@ -20,9 +20,6 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
   state,
   dispatch,
 ) => {
-  let skuOpt = skuOrder.skuOrderSku.rel.getRecord()
-  let destOpt = skuOrder.skuOrderBoxDest.rel.getRecord()
-  let parentOpt = skuOrder.trackingRecord.rel.getRecord()
   open Js.String2
   let nameIsSerialTemplate: skuRecord => bool = sku =>
     // they look like SKUNAME-XXXX or XXXY or somethign
@@ -37,7 +34,12 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
       // and the sku name prior to that has a dash in it
       "-" == sku.skuName.read()->slice(~from=-5, ~to_=-4)
 
-  switch (skuOpt, destOpt, parentOpt, skuOrder.quantityExpected.read()) {
+  switch (
+    skuOrder.skuOrderSku.rel.getRecord(),
+    skuOrder.skuOrderBoxDest.rel.getRecord(),
+    skuOrder.trackingRecord.rel.getRecord(),
+    skuOrder.quantityExpected.read(),
+  ) {
   | (Some(sku), Some(dest), Some(parent), expectQty) when expectQty > 0 => {
       // welp we've deref'd some important core stuff
 
@@ -55,15 +57,11 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           })
         )
 
-      let (singleFilteredToBox, selectedBoxRecordForPacking) = switch (
-        boxesToDisplay->Array.get(0),
-        boxesToDisplay->Array.length == 1,
-        boxesToDisplay->Array.get(0)->Option.flatMap(b => b.underlyingRecord),
-      ) {
-      | (Some(pb), true, Some(record)) => (Some(pb), Some(record))
-      | (Some(pb), true, _) => (Some(pb), None)
-      | _ => (None, None)
-      }
+      let (singleFilteredToBox, selectedBoxRecordForPacking) =
+        boxesToDisplay->Array.get(0)->Option.map(btd =>
+          // can't be selected if there is more than one thing in the array
+          boxesToDisplay->Array.length == 1 ? (Some(btd), btd.underlyingRecord) : (None, None)
+        )->Option.getWithDefault((None, None))
 
       let persistToReceivedField = iOpt => BlindlyPromise(
         () =>
@@ -282,7 +280,7 @@ do about it.`,
   - SKU must be set (status: ${skuopt->stat})
   - A SkuOrderTrackingRecord must be connected (status: ${parent->stat})
   - SKU serial must be 6 characters in length or MORE (pad with spaces in front if needed)
-      (len: ${skuOpt
+      (len: ${skuopt
         ->Option.mapWithDefault(0, sku => sku.skuName.read()->length)
         ->Int.toString})
   - SKU serial must not end in X### where '#' is anything and 'X' is a capital X
