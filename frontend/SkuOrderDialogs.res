@@ -68,7 +68,7 @@ module ReceiveUnserialedSku = {
       actionButtons=[
         <CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>,
         <SecondarySaveButton
-          disabled={qtyToReceive > 0}
+          disabled={qtyToReceive < 1}
           onClick={() =>
             dispatch->multi([
               persistQtyReceivedFromState,
@@ -78,7 +78,7 @@ module ReceiveUnserialedSku = {
           {s(qtyToReceive > 0 ? `Save and Close` : `Must Receive > 0`)}
         </SecondarySaveButton>,
         <PrimarySaveButton
-          disabled={qtyToReceive > 0}
+          disabled={qtyToReceive < 1}
           onClick={() =>
             dispatch->multi([persistQtyReceivedFromState, persistReceivingNotesFromState])}>
           {s(qtyToReceive > 0 ? `Save and Continue` : `Must Receive > 0`)}

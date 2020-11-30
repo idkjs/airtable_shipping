@@ -104,7 +104,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           skuOrder.quantityExpected.read(),
         ),
         qtyToReceiveOnChange: dispatch->onChangeHandler(v => UpdateSKUReceivedQty(
-          v->Int.fromString,
+          v->Int.fromString->Option.map(v => v > 0 ? v : 1),
         )),
         receivingNotes: state.skuReceivingNotes,
         receivingNotesOnChange: dispatch->onChangeHandler(v => UpdateReceivingNotes(v)),
