@@ -21,6 +21,7 @@ type skuOrderDialogVars = {
   persistReceivingNotesFromState: action,
   persistIsReceivedCheckbox: action,
   persistSerialNumberAndSerializedSkuNameFromState: action,
+  persistUnreceive: action,
   // display vars
   qtyToReceive: int,
   qtyToReceiveOnChange: ReactEvent.Form.t => unit,
@@ -220,10 +221,10 @@ module BoxSku = {
       receivingNotes,
       receivingNotesOnChange,
       createNewBox,
-      packingBox,
       packingBoxIsLoading,
       packBox,
       boxSearchClear,
+      persistUnreceive,
     } = dialogVars
 
     let clearSearchBtn =
@@ -231,7 +232,12 @@ module BoxSku = {
 
     <PipelineDialog
       header={`Box ${sku.skuName.read()}`}
-      actionButtons=[<CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>]
+      actionButtons=[
+        <CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>,
+        <WarningButton onClick={() => dispatch(persistUnreceive)}>
+          {s(`Unreceive This SkuOrder. Eek!`)}
+        </WarningButton>,
+      ]
       closeCancel>
       <Subheading> {`Narrow Box Results`->s} </Subheading>
       <input

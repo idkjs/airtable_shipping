@@ -64,6 +64,14 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
       | _ => (None, None)
       }
 
+      let persistToReceivedField = iOpt => BlindlyPromise(
+        () =>
+          skuOrder.quantityReceived.updateAsync(iOpt) |> Js.Promise.then_(_ =>
+            iOpt->Option.mapWithDefault(false, i => i == skuOrder.quantityExpected.read())
+              |> skuOrder.skuOrderIsReceived.updateAsync
+          ),
+      )
+
       let sovars = {
         skuOrder: skuOrder,
         sku: sku,
@@ -71,12 +79,8 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         tracking: parent,
         dispatch: dispatch,
         closeCancel: () => UnfocusOrderRecord->dispatch,
-        persistQtyReceivedFromState: BlindlyPromise(
-          () => skuOrder.quantityReceived.updateAsync(state.skuQuantityReceived),
-        ),
-        persistQtyReceivedOfOne: BlindlyPromise(
-          () => skuOrder.quantityReceived.updateAsync(Some(1)),
-        ),
+        persistQtyReceivedFromState: persistToReceivedField(state.skuQuantityReceived),
+        persistQtyReceivedOfOne: persistToReceivedField(Some(1)),
         persistReceivingNotesFromState: BlindlyPromise(
           () => skuOrder.receivingNotes.updateAsync(state.skuReceivingNotes),
         ),
@@ -99,6 +103,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
               )
             },
         ),
+        persistUnreceive: persistToReceivedField(None),
         dialogClose: UnfocusOrderRecord,
         qtyToReceive: state.skuQuantityReceived->Option.getWithDefault(
           skuOrder.quantityExpected.read(),
@@ -151,26 +156,34 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
             BlindlyPromise(() => pb.getRecordId()->asUnitPromise),
           ]),
         packBox: (potentialBox, box, qty, notes, _) =>
-          dispatch->multi([
-            UseBox(skuOrder, potentialBox),
-            BlindlyPromise(
-              () =>
-                schema.boxLine.crud.create([
-                  schema.boxLine.boxRecordField.buildObjectMapComponent(box),
-                  schema.boxLine.boxLineSkuField.buildObjectMapComponent(sku),
-                  schema.boxLine.boxLineSkuOrderField.buildObjectMapComponent(skuOrder),
-                  schema.boxLine.qtyField.buildObjectMapComponent(qty),
-                ])->asUnitPromise,
-            ),
-            BlindlyPromise(() => box.boxNotes.updateAsync(notes)),
-            DidJustPackABox,
-          ]),
+          dispatch->multi(
+            [
+              Some(UseBox(skuOrder, potentialBox)),
+              Some(
+                BlindlyPromise(
+                  () =>
+                    schema.boxLine.crud.create([
+                      schema.boxLine.boxRecordField.buildObjectMapComponent(box),
+                      schema.boxLine.boxLineSkuField.buildObjectMapComponent(sku),
+                      schema.boxLine.boxLineSkuOrderField.buildObjectMapComponent(skuOrder),
+                      schema.boxLine.qtyField.buildObjectMapComponent(qty),
+                    ])->asUnitPromise,
+                ),
+              ),
+              Some(BlindlyPromise(() => box.boxNotes.updateAsync(notes))),
+              Some(DidJustPackABox),
+              qty == unboxedQty
+                ? Some(BlindlyPromise(() => skuOrder.boxedCheckbox.updateAsync(true)))
+                : None,
+            ]->Array.keepMap(identity),
+          ),
         packingBoxIsLoading: state.boxToUseForPacking->Option.isSome &&
           selectedBoxRecordForPacking->Option.isNone,
         packingBox: selectedBoxRecordForPacking,
         deleteBoxLine: (boxLineRecord, _) =>
           dispatch->multi([
             BlindlyPromise(() => schema.boxLine.crud.delete([boxLineRecord])),
+            BlindlyPromise(() => skuOrder.boxedCheckbox.updateAsync(false)),
             ClearJustPackedABox,
           ]),
       }
