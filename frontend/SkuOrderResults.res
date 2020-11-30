@@ -55,11 +55,16 @@ let make = (
           accessor: so => so.skuOrderBoxDest.scalar.render(),
           tdStyle: ReactDOM.Style.make(),
         },
-        {
-          header: `Recv?`,
+        /* {
+          header: `Receive Expected?`,
           accessor: so => so.skuOrderIsReceived.render(),
-          tdStyle: ReactDOM.Style.make(),
+          tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
         },
+        {
+          header: `Boxed?`,
+          accessor: so => so.boxedCheckbox.render(),
+          tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
+        }, */
         {
           header: `Notes`,
           accessor: so => so.receivingNotes.render(),

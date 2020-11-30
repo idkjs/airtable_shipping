@@ -69,7 +69,7 @@ let allowedAirtableFieldTypes: airtableFieldValueType => array<string> = fvt => 
     | IntOption => [`number`]
     | Bool => [`checkbox`]
     | IntAsBool => [`number`]
-    | MomentOption => [`dateTime`]
+    | MomentOption => [`date`, `dateTime`]
     }
   }
 }

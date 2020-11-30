@@ -14,6 +14,7 @@ let make = () => {
   let trackingRecords: array<skuOrderTrackingRecord> =
     schema.skuOrderTracking.hasTrackingNumbersView.useRecords([
       schema.skuOrderTracking.isReceivedField.sortAsc,
+      schema.skuOrderTracking.shipDateField.sortDesc,
     ])->Array.keep(record => {
       //->Array.map(tracking => (tracking,tracking.skuOrders.useRecords([])))
       // keep everything if we don't have a search string, else get items that include the search query

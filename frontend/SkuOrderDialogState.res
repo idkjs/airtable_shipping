@@ -343,10 +343,11 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
   }
 }
 
-let parentCanBeUnreceived = (schema, skuOrderTrackingRecord, state, action) =>
+let parentCanBeUnreceived = (schema, skuOrderTrackingRecord, state, dispatch) =>
   skuOrderTrackingRecord.skuOrders.rel.getRecords([])->Array.every(skuOrderRecord =>
-    switch recordStatus(schema, skuOrderRecord, state, action) {
-    // first stage
+    switch recordStatus(schema, skuOrderRecord, state, dispatch) {
+    // first stages
+    | CollectSerialNumberAndReceive1(_)
     | ReceiveQtyOfSku(_) => true
     | _ => false
     }
