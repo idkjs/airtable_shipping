@@ -43,6 +43,7 @@ type skuOrderDialogVars = {
   packBox: (potentialBox, boxRecord, int, string, unit) => unit,
   packingBoxIsLoading: bool,
   packingBox: option<boxRecord>,
+  deleteBoxLine: (boxLineRecord, unit) => unit,
 }
 
 module ReceiveUnserialedSku = {
@@ -380,6 +381,7 @@ module SpectatePackedBoxes = {
       persistReceivingNotesFromState,
       dispatch,
       dialogClose,
+      deleteBoxLine,
     } = dialogVars
     let packedInNBoxes = boxesToSpectate->Array.length
     <PipelineDialog
@@ -419,6 +421,14 @@ module SpectatePackedBoxes = {
                 {
                   header: `Qty`,
                   accessor: bl => bl.qty.render(),
+                  tdStyle: ReactDOM.Style.make(),
+                },
+                {
+                  header: `🙀 👻 🔥`,
+                  accessor: bl =>
+                    <WarningButton onClick={deleteBoxLine(bl)}>
+                      {`Remove this from the box`->s}
+                    </WarningButton>,
                   tdStyle: ReactDOM.Style.make(),
                 },
               ]

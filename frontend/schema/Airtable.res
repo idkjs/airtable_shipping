@@ -39,6 +39,9 @@ external getRecordById: (airtableRawRecordQueryResult, string) => option<airtabl
 @bs.send
 external createRecordAsync: (airtableRawTable, airtableObjectMap) => Js.Promise.t<string> =
   "createRecordAsync"
+@bs.send
+external deleteRecordsAsync: (airtableRawTable, array<airtableRawRecord>) => Js.Promise.t<unit> =
+  "deleteRecordsAsync"
 
 @bs.send
 external format: (airtableMoment, unit) => string = "format"

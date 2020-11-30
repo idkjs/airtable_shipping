@@ -204,10 +204,12 @@ type tableSchemaField<'recordT, 'scalarT> = genericTableSchemaField<'scalarT>
 type tableRecordOperations<'recordT> = {
   create: array<recordCreateUpdateParam<'recordT>> => Js.Promise.t<recordId<'recordT>>,
   update: ('recordT, array<recordCreateUpdateParam<'recordT>>) => Js.Promise.t<unit>,
+  delete: array<'recordT> => Js.Promise.t<unit>,
 }
 let buildTableRecordOperations: airtableRawTable => tableRecordOperations<'recordT> = rawTable => {
   create: arr => rawTable->createRecordAsync(buildAirtableObjectMap(arr)),
   update: (reco, arr) => rawTable->updateRecordAsync(reco, buildAirtableObjectMap(arr)),
+  delete: recos => rawTable->deleteRecordsAsync(recos),
 }
 external mapTableRecordOperations: tableRecordOperations<'a> => tableRecordOperations<'b> =
   "%identity"

@@ -168,6 +168,11 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         packingBoxIsLoading: state.boxToUseForPacking->Option.isSome &&
           selectedBoxRecordForPacking->Option.isNone,
         packingBox: selectedBoxRecordForPacking,
+        deleteBoxLine: (boxLineRecord, _) =>
+          dispatch->multi([
+            BlindlyPromise(() => schema.boxLine.crud.delete([boxLineRecord])),
+            ClearJustPackedABox,
+          ]),
       }
 
       switch (
