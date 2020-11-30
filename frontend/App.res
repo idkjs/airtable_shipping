@@ -72,17 +72,29 @@ let make = () => {
     |> Array.concatMany
     |> loadAndWatch
 
-  let isFocusedOnTracking = trackingRecords->Array.length == 1
-  let skuOrderRecords: array<skuOrderRecord> = isFocusedOnTracking
-  // we don't wanna show shit if we haven't narrowed the results
-  // can only show sku orders for received tracking numbers
-    ? trackingRecords
-      ->Array.keep(sot => sot.isReceived.read())
-      ->Array.map(sot => sot.skuOrders.rel.getRecords([]))
-      ->Array.concatMany
-    : []
+  let skuOrderRecords: array<skuOrderRecord> =
+    trackingRecords->Array.length == 1
+    // we don't wanna show shit if we haven't narrowed the results
+    // can only show sku orders for received tracking numbers
+      ? trackingRecords
+        ->Array.keep(sot => sot.isReceived.read())
+        ->Array.map(sot => sot.skuOrders.rel.getRecords([]))
+        ->Array.concatMany
+      : []
 
-  let noResultsForFocusedTrackingId = isFocusedOnTracking && skuOrderRecords->Array.length == 0
+  let messageAboutSkuOrderResults = switch (
+    trackingRecords->Array.length,
+    trackingRecords->Array.get(0)->Option.map(sot => sot.isReceived.read()),
+  ) {
+  | (0, _) => `Change your search query to find a tracking record`
+  | (n, _) when n > 1 => `Focus on a single tracking record to display SKUs`
+  | (
+      1,
+      Some(true),
+    ) => `No skus are listed for this tracking number. If this is an error, get in touch! :)`
+  | (1, Some(false)) => `Receive this tracking number to see SKUs`
+  | _ => `Err`
+  }
 
   //Js.Console.log(skuOrderRecords)
 
@@ -93,10 +105,8 @@ let make = () => {
     <div style={ReactDOM.Style.make(~marginBottom="26px", ())} />
     {skuOrderRecords->Array.length > 0
       ? <SkuOrderResults state dispatch schema skuOrderRecords />
-      : noResultsForFocusedTrackingId
-      ? <p style={ReactDOM.Style.make(~fontSize="16px", ~color="red", ())}>
-        {`No skus are listed for this tracking number. If this is an error, get in touch! :)`->s}
-      </p>
-      : React.null}
+      : <p style={ReactDOM.Style.make(~fontSize="16px", ~color="red", ())}>
+          {messageAboutSkuOrderResults->s}
+        </p>}
   </div>
 }
