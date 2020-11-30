@@ -8,11 +8,12 @@ open PipelineDialog
 
 type skuOrderTrackingState = {activationButton: React.element, dialog: React.element}
 
-let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTrackingState = (
-  sotr,
+let parseRecordState: (
+  schema,
+  skuOrderTrackingRecord,
   state,
-  dispatch,
-) => {
+  action => _,
+) => skuOrderTrackingState = (schema, sotr, state, dispatch) => {
   let dialogOpen = () => {
     dispatch(UpdateWarehouseNotes(sotr.warehouseNotes.read()))
     dispatch(FocusOnTrackingRecord(sotr))
@@ -36,6 +37,12 @@ let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTr
 
   let warehouseNotesOnChange = dispatch->onChangeHandler(v => UpdateWarehouseNotes(v))
 
+  let canUnreceiveThisRecord = SkuOrderDialogState.parentCanBeUnreceived(
+    schema,
+    sotr,
+    state,
+    dispatch,
+  )
   let cancelAndDontSaveButton =
     <CancelButton onClick=dialogClose> {s(`Don't save my changes`)} </CancelButton>
   let saveChangesToNotesButton =
@@ -45,8 +52,13 @@ let parseRecordState: (skuOrderTrackingRecord, state, action => _) => skuOrderTr
       {s(`Save Notes and Receive!`)}
     </PrimarySaveButton>
   let unreceiveAndSaveNotes =
-    <WarningButton onClick=unreceiveTrackingNumberSaveNotesAndClose>
-      {s(`Unreceive & Save Notes`)}
+    <WarningButton
+      onClick=unreceiveTrackingNumberSaveNotesAndClose disabled={!canUnreceiveThisRecord}>
+      {s(
+        canUnreceiveThisRecord
+          ? `Unreceive & Save Notes`
+          : `Cannot Unreceive - Children are Received`,
+      )}
     </WarningButton>
 
   let isReceived = sotr.isReceived.read()

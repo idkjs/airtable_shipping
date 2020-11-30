@@ -56,13 +56,13 @@ let make = (
         },
         {
           header: `Action`,
-          accessor: record => parseRecordState(record, state, dispatch).activationButton,
+          accessor: record => parseRecordState(schema, record, state, dispatch).activationButton,
           tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
         },
       ]
     />
     {focusedTrackingRecordOpt->Option.mapWithDefault(React.null, record =>
-      parseRecordState(record, state, dispatch).dialog
+      parseRecordState(schema, record, state, dispatch).dialog
     )}
   </div>
 }
