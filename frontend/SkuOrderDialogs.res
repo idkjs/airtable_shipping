@@ -381,6 +381,7 @@ module SpectatePackedBoxes = {
   ) => {
     let {
       closeCancel,
+      sku,
       boxSearchClear,
       receivingNotes,
       receivingNotesOnChange,
@@ -432,7 +433,12 @@ module SpectatePackedBoxes = {
                 {
                   header: `🙀 👻 🔥`,
                   accessor: bl =>
-                    <WarningButton onClick={deleteBoxLine(bl)}>
+                    <WarningButton
+                      onClick={deleteBoxLine(bl)}
+                      // only enable for the sku in question
+                      disabled={bl.boxLineSku.rel.getRecord()->Option.mapWithDefault(true, reco =>
+                        reco.id !== sku.id
+                      )}>
                       {`Remove this from the box`->s}
                     </WarningButton>,
                   tdStyle: ReactDOM.Style.make(),

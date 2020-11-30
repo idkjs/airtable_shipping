@@ -63,7 +63,13 @@ let make = () => {
   // descend 5 levels
   let flatMapBoxLine = fn =>
     flatMapBox(box => box.boxLines.rel.getRecords([])->Array.map(fn)) |> Array.concatMany
-  let _ = flatMapBoxLine(ln => ln.boxRecord.rel.getRecordQueryResult()) |> loadAndWatch
+  let _ =
+    flatMapBoxLine(ln => [
+      ln.boxLineSku.rel.getRecordQueryResult(),
+      ln.boxRecord.rel.getRecordQueryResult(),
+    ])
+    |> Array.concatMany
+    |> loadAndWatch
 
   let skuOrderRecords: array<skuOrderRecord> = isSearching
   // we don't wanna show shit if we haven't narrowed the results

@@ -58,8 +58,10 @@ module CancelButton = {
 
 module WarningButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element, ~style=?) =>
-    <Button onClick icon="warning" size="large" variant="danger" ?style> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element, ~style=?) =>
+    <Button onClick ?disabled icon="warning" size="large" variant="danger" ?style>
+      {children}
+    </Button>
 }
 
 module PrimaryActionButton = {
