@@ -225,6 +225,7 @@ module BoxSku = {
       packBox,
       boxSearchClear,
       persistUnreceive,
+      dialogClose,
     } = dialogVars
 
     let clearSearchBtn =
@@ -234,8 +235,8 @@ module BoxSku = {
       header={`Box ${sku.skuName.read()}`}
       actionButtons=[
         <CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>,
-        <WarningButton onClick={() => dispatch(persistUnreceive)}>
-          {s(`Unreceive This SkuOrder. Eek!`)}
+        <WarningButton onClick={() => dispatch->multi([persistUnreceive, dialogClose])}>
+          {s(`Unreceive This Sku. Eek!`)}
         </WarningButton>,
       ]
       closeCancel>
