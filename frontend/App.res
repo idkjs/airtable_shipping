@@ -21,7 +21,7 @@ let make = () => {
     })
 
   let loadAndWatch: array<airtableRawRecordQueryResult> => unit = arr =>
-    arr->useMultipleQueries->useWatchable([`records`])
+    arr->useMultipleQueries->useWatchable([`records`, `cellValues`])
 
   // descend 1 level down
   let mapTracking = fn => trackingRecords->Array.map(fn)
