@@ -155,19 +155,35 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
             UseBox(skuOrder, pb),
             BlindlyPromise(() => pb.getRecordId()->asUnitPromise),
           ]),
-        packBox: (potentialBox, box, qty, notes, _) =>
+        packBox: (potentialBox, box, qty, notes, _) => {
+          let existingLineWithThisSkuInTargetBox =
+            box.boxLines.rel.getRecords([])
+            ->Array.map(bl =>
+              bl.boxLineSku.rel.getRecord()->Option.flatMap(bls =>
+                bls.id == sku.id ? Some(bl) : None
+              )
+            )
+            ->Array.keepMap(identity)
+            ->Array.get(0)
+
           dispatch->multi(
             [
               Some(UseBox(skuOrder, potentialBox)),
               Some(
                 BlindlyPromise(
-                  () =>
-                    schema.boxLine.crud.create([
-                      schema.boxLine.boxRecordField.buildObjectMapComponent(box),
-                      schema.boxLine.boxLineSkuField.buildObjectMapComponent(sku),
-                      schema.boxLine.boxLineSkuOrderField.buildObjectMapComponent(skuOrder),
-                      schema.boxLine.qtyField.buildObjectMapComponent(qty),
-                    ])->asUnitPromise,
+                  existingLineWithThisSkuInTargetBox->Option.mapWithDefault(
+                    // if there is no existing line, then create a new one
+                    () =>
+                      schema.boxLine.crud.create([
+                        schema.boxLine.boxRecordField.buildObjectMapComponent(box),
+                        schema.boxLine.boxLineSkuField.buildObjectMapComponent(sku),
+                        schema.boxLine.boxLineSkuOrderField.buildObjectMapComponent(skuOrder),
+                        schema.boxLine.qtyField.buildObjectMapComponent(qty),
+                      ])->asUnitPromise,
+                    (existingBoxLine, ()) =>
+                      // a line exists, then just update the quantity
+                      existingBoxLine.qty.updateAsync(existingBoxLine.qty.read() + qty),
+                  ),
                 ),
               ),
               Some(BlindlyPromise(() => box.boxNotes.updateAsync(notes))),
@@ -176,7 +192,8 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
                 ? Some(BlindlyPromise(() => skuOrder.boxedCheckbox.updateAsync(true)))
                 : None,
             ]->Array.keepMap(identity),
-          ),
+          )
+        },
         packingBoxIsLoading: state.boxToUseForPacking->Option.isSome &&
           selectedBoxRecordForPacking->Option.isNone,
         packingBox: selectedBoxRecordForPacking,
