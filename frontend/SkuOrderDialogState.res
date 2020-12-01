@@ -102,6 +102,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
               )
             },
         ),
+        canUnreceive: skuOrder.quantityPacked.read() == 0,
         persistUnreceive: persistToReceivedField(None),
         dialogClose: UnfocusOrderRecord,
         qtyToReceive: state.skuQuantityReceived->Option.getWithDefault(

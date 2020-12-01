@@ -22,6 +22,7 @@ type skuOrderDialogVars = {
   persistReceivingNotesFromState: action,
   persistIsReceivedCheckbox: action,
   persistSerialNumberAndSerializedSkuNameFromState: action,
+  canUnreceive: bool,
   persistUnreceive: action,
   // display vars
   qtyToReceive: int,
@@ -226,6 +227,7 @@ module BoxSku = {
       packBox,
       boxSearchClear,
       persistUnreceive,
+      canUnreceive,
       dialogClose,
     } = dialogVars
 
@@ -236,8 +238,13 @@ module BoxSku = {
       header={`Box ${sku.skuName.read()}`}
       actionButtons=[
         <CancelButton onClick=closeCancel> {s(`Cancel`)} </CancelButton>,
-        <WarningButton onClick={() => dispatch->multi([persistUnreceive, dialogClose])}>
-          {s(`Unreceive This Sku. Eek!`)}
+        <WarningButton
+          disabled={!canUnreceive} onClick={() => dispatch->multi([persistUnreceive, dialogClose])}>
+          {s(
+            canUnreceive
+              ? `Unreceive This Sku. Eek!`
+              : `Cannot unreceive while some of this SKU is boxed`,
+          )}
         </WarningButton>,
       ]
       closeCancel>
