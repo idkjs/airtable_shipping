@@ -77,7 +77,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         dest: dest,
         tracking: parent,
         dispatch: dispatch,
-        closeCancel: () => UnfocusOrderRecord->dispatch,
+        closeCancel: () => dispatch->multi([UnfocusOrderRecord, ClearShowPackedBoxes]),
         persistQtyReceivedFromState: persistToReceivedField(state.skuQuantityReceived),
         persistQtyReceivedOfOne: persistToReceivedField(Some(1)),
         persistReceivingNotesFromState: BlindlyPromise(
@@ -102,7 +102,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
               )
             },
         ),
-        canUnreceive: skuOrder.quantityPacked.read() == 0,
+        hasAnythingBeenPacked: skuOrder.quantityPacked.read() != 0,
         persistUnreceive: persistToReceivedField(None),
         dialogClose: UnfocusOrderRecord,
         qtyToReceive: state.skuQuantityReceived->Option.getWithDefault(
@@ -171,7 +171,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
                 ),
               ),
               Some(BlindlyPromise(() => box.boxNotes.updateAsync(notes))),
-              Some(DidJustPackABox),
+              Some(ShowPackedBoxes),
               qty == unboxedQty
                 ? Some(BlindlyPromise(() => skuOrder.boxedCheckbox.updateAsync(true)))
                 : None,
@@ -184,7 +184,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           dispatch->multi([
             BlindlyPromise(() => schema.boxLine.crud.delete([boxLineRecord])),
             BlindlyPromise(() => skuOrder.boxedCheckbox.updateAsync(false)),
-            ClearJustPackedABox,
+            ClearShowPackedBoxes,
           ]),
       }
 
@@ -245,7 +245,7 @@ have a quantity received entered at all, since we are still waiting for it.
             ->Array.map(boxLine => boxLine.boxRecord.rel.getRecord())
             ->Array.keepMap(identity)
 
-          switch (unboxedQty, state.didJustPackABox) {
+          switch (unboxedQty, state.showPackedBoxes) {
           // shouldn't have less than 0 things to receive--it was overpacked
           // if there is something left to box, then show that dialog
           | (ub, false) when ub > 0 => PutInBox(sovars)
@@ -292,7 +292,11 @@ do about it.`,
   }
 }
 
-type skuOrderState = {activationButton: React.element, dialog: React.element}
+type skuOrderState = {
+  inspectionButton: React.element,
+  activationButton: React.element,
+  dialog: React.element,
+}
 
 let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderState = (
   schema,
@@ -303,37 +307,47 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
   let recordStatus = recordStatus(schema, sor, state, dispatch)
 
   let dumbOpen = () => dispatch(FocusOnOrderRecord(sor))
-  let closeCancel = () => dispatch->multi([UnfocusOrderRecord, ClearJustPackedABox])
 
-  let realOpen = ({skuOrder, sku}, ()) => {
-    let _ = // reset all the core values to their defaults for this order
+  let realOpen = ({skuOrder, sku}, showPackedBoxes, ()) => {
+    // reset all the core values to their defaults for this order
     dispatch->multi([
       UpdateSKUReceivedQty(Some(skuOrder.quantityExpected.read())),
       UpdateReceivingNotes(skuOrder.receivingNotes.read()),
       UpdateSKUSerial(sku.serialNumber.read()),
       ClearBoxToUse,
-      ClearJustPackedABox,
+      showPackedBoxes ? ShowPackedBoxes : ClearShowPackedBoxes,
+      FocusOnOrderRecord(sor),
     ])
-
-    dumbOpen()
   }
 
   {
     activationButton: switch recordStatus {
     | DataCorruption(_) => <WarningButton onClick=dumbOpen> {"Data Corruption"->s} </WarningButton>
     | ReceiveQtyOfSku(sov) =>
-      <PrimaryActionButton onClick={realOpen(sov)}> {"Receive Item(s)"->s} </PrimaryActionButton>
+      <PrimaryActionButton onClick={realOpen(sov, false)}>
+        {"Receive Item(s)"->s}
+      </PrimaryActionButton>
     | CollectSerialNumberAndReceive1(sov) =>
-      <PrimaryActionButton onClick={realOpen(sov)}>
+      <PrimaryActionButton onClick={realOpen(sov, false)}>
         {"Enter Serial Number"->s}
       </PrimaryActionButton>
     | PutInBox(sov) =>
-      <PrimaryActionButton onClick={realOpen(sov)}> {"Box Item"->s} </PrimaryActionButton>
+      <PrimaryActionButton onClick={realOpen(sov, false)}> {"Box Item"->s} </PrimaryActionButton>
     | SpectatePackedBoxes(sov, _, _) =>
-      <EditButton onClick={realOpen(sov)}> {s(`View/Edit Packed Box(es)`)} </EditButton>
+      <EditButton onClick={realOpen(sov, false)}> {s(`View/Edit Packed Box(es)`)} </EditButton>
+    },
+    inspectionButton: switch recordStatus {
+    | DataCorruption(_)
+    | ReceiveQtyOfSku(_)
+    | CollectSerialNumberAndReceive1(_) =>
+      <EditButton disabled={true} onClick={() => ()}> {s(`Nothing Packed`)} </EditButton>
+    | PutInBox(sov)
+    | SpectatePackedBoxes(sov, _, _) =>
+      <EditButton onClick={realOpen(sov, true)}> {s(`View/Edit Packed Box(es)`)} </EditButton>
     },
     dialog: switch recordStatus {
-    | DataCorruption(msg) => <DataCorruption closeCancel formattedErrorText=msg />
+    | DataCorruption(msg) =>
+      <DataCorruption closeCancel={() => dispatch(UnfocusOrderRecord)} formattedErrorText=msg />
     | ReceiveQtyOfSku(dialogVars) => <ReceiveUnserialedSku dialogVars />
     | CollectSerialNumberAndReceive1(dialogVars) => <ReceiveSerialedSku dialogVars />
     | PutInBox(dialogVars) => <BoxSku dialogVars />

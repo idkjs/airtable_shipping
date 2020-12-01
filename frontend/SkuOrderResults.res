@@ -70,7 +70,12 @@ let make = (
           tdStyle: ReactDOM.Style.make(),
         },
         {
-          header: `➡️`,
+          header: `Inspect`,
+          accessor: so => parseRecordState(schema, so, state, dispatch).inspectionButton,
+          tdStyle: ReactDOM.Style.make(),
+        },
+        {
+          header: `➡️ ➡️ ➡️`,
           accessor: so => parseRecordState(schema, so, state, dispatch).activationButton,
           tdStyle: ReactDOM.Style.make(),
         },

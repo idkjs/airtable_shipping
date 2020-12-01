@@ -46,8 +46,10 @@ module Subheading = {
 
 module EditButton = {
   @react.component
-  let make = (~onClick: unit => _, ~children: React.element, ~style=?) =>
-    <Button onClick icon="edit" size="large" variant="default" ?style> {children} </Button>
+  let make = (~onClick: unit => _, ~disabled=?, ~children: React.element, ~style=?) =>
+    <Button onClick ?disabled icon="edit" size="large" variant="default" ?style>
+      {children}
+    </Button>
 }
 
 module CancelButton = {

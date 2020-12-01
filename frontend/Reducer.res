@@ -23,8 +23,8 @@ type rec action =
   | UpdateBoxNotes(skuOrderRecord, potentialBox, string)
   | UseBox(skuOrderRecord, potentialBox)
   | ClearBoxToUse
-  | DidJustPackABox
-  | ClearJustPackedABox
+  | ShowPackedBoxes
+  | ClearShowPackedBoxes
 and boxStuff = {name: string, qty: int, notes: string}
 
 type state = {
@@ -42,7 +42,7 @@ type state = {
   boxSearchString: Map.String.t<string>,
   boxStuffMap: Map.String.t<boxStuff>,
   boxToUseForPacking: option<boxStuff>,
-  didJustPackABox: bool,
+  showPackedBoxes: bool,
 }
 
 let initialState: state = {
@@ -56,7 +56,7 @@ let initialState: state = {
   boxSearchString: Map.String.empty,
   boxStuffMap: Map.String.empty,
   boxToUseForPacking: None,
-  didJustPackABox: false,
+  showPackedBoxes: false,
 }
 
 let rec reducer = (state, action) => {
@@ -91,13 +91,13 @@ let rec reducer = (state, action) => {
       ...state,
       boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some(s)),
       boxToUseForPacking: None,
-      didJustPackABox: false,
+      showPackedBoxes: false,
     }
   | ClearBoxSearchString(bdr) => {
       ...state,
       boxSearchString: state.boxSearchString->Map.String.update(bdr.destName.read(), _ => Some("")),
       boxToUseForPacking: None,
-      didJustPackABox: false,
+      showPackedBoxes: false,
     }
   | UpdateQtyToBox(skor, pb, qty) => {
       ...state,
@@ -116,13 +116,13 @@ let rec reducer = (state, action) => {
       ...state,
       boxToUseForPacking: None,
     }
-  | DidJustPackABox => {
+  | ShowPackedBoxes => {
       ...state,
-      didJustPackABox: true,
+      showPackedBoxes: true,
     }
-  | ClearJustPackedABox => {
+  | ClearShowPackedBoxes => {
       ...state,
-      didJustPackABox: false,
+      showPackedBoxes: false,
     }
   }
   Js.Console.log(rv)
