@@ -171,19 +171,17 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
               Some(UseBox(skuOrder, potentialBox)),
               Some(
                 BlindlyPromise(
-                  existingLineWithThisSkuInTargetBox->Option.mapWithDefault(
-                    // if there is no existing line, then create a new one
-                    () =>
+                  () =>
+                    existingLineWithThisSkuInTargetBox->Option.mapWithDefault(
                       schema.boxLine.crud.create([
                         schema.boxLine.boxRecordField.buildObjectMapComponent(box),
                         schema.boxLine.boxLineSkuField.buildObjectMapComponent(sku),
                         schema.boxLine.boxLineSkuOrderField.buildObjectMapComponent(skuOrder),
                         schema.boxLine.qtyField.buildObjectMapComponent(qty),
                       ])->asUnitPromise,
-                    (existingBoxLine, ()) =>
-                      // a line exists, then just update the quantity
-                      existingBoxLine.qty.updateAsync(existingBoxLine.qty.read() + qty),
-                  ),
+                      existingBoxLine =>
+                        existingBoxLine.qty.updateAsync(existingBoxLine.qty.read() + qty),
+                    ),
                 ),
               ),
               Some(BlindlyPromise(() => box.boxNotes.updateAsync(notes))),
