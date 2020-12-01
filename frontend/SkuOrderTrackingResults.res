@@ -32,7 +32,22 @@ let make = (
         },
         {
           header: `Tracking Number`,
-          accessor: record => record.trackingNumber.render(),
+          accessor: record => {
+            open Js.String
+
+            let lnk = record.trackingLink.read()->Js.String.trim
+            let shw = lnk->length > 10
+
+            <span>
+              {record.trackingNumber.render()}
+              {shw
+                ? <a
+                    href={lnk} target="_blank" style={ReactDOM.Style.make(~fontStyle="italic", ())}>
+                    {`track package`->s}
+                  </a>
+                : React.null}
+            </span>
+          },
           tdStyle: ReactDOM.Style.make(~width="15%", ()),
         },
         {

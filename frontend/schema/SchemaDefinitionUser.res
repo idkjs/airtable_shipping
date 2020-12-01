@@ -16,6 +16,11 @@ let rec skuOrdersTrackingTable: airtableTableDef = {
       fieldValueType: ScalarRW(BareString),
     },
     {
+      resolutionMethod: ByName(`Tracking Link`),
+      camelCaseFieldName: `trackingLink`,
+      fieldValueType: FormulaRollupRO(BareString),
+    },
+    {
       resolutionMethod: ByName(`SKU Orders`),
       camelCaseFieldName: `skuOrders`,
       fieldValueType: RelFieldOption(skuOrdersTable, false, BareString),
