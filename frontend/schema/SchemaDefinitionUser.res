@@ -108,11 +108,6 @@ and skuOrdersTable: airtableTableDef = {
       fieldValueType: ScalarRW(Bool),
     },
     {
-      resolutionMethod: ByName(`gtg_dest_prefix`),
-      camelCaseFieldName: `skuOrderDestinationPrefix`,
-      fieldValueType: FormulaRollupRO(BareString),
-    },
-    {
       resolutionMethod: ByName(`SKU Receiving Notes`),
       camelCaseFieldName: `receivingNotes`,
       fieldValueType: ScalarRW(BareString),

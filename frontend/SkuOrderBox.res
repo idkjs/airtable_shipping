@@ -60,15 +60,17 @@ let findPotentialBoxes: (
   // https://en.wikipedia.org/wiki/Symmetric_difference
   let expectedButNotPresent = Set.Int.diff(expectedBoxNumbers, presentBoxNumbers)
   let presentButNotExpected = Set.Int.diff(presentBoxNumbers, expectedBoxNumbers)
+  let noDupeNumbers = presentBoxNumbers->Set.Int.size == boxes->Array.length
 
   // almost all this function is dedicated to parsing out the potential errors and
   // describing them in close detail
   let errorMessage = switch (
     expectedButNotPresent->Set.Int.isEmpty,
     presentButNotExpected->Set.Int.isEmpty,
+    noDupeNumbers,
   ) {
   // seems good if there is nothing in these sets
-  | (true, true) => ""
+  | (true, true, true) => ""
   | _ => {
       let minMaxNum = set => (
         // we know the set has length
@@ -78,18 +80,21 @@ let findPotentialBoxes: (
 
       let toNumberList = set =>
         set->Set.Int.toArray->Array.map(formatBoxNameWithNumber(bdr)) |> joinWith(", ")
-      let expectedSize = expectedBoxNumbers->Set.Int.size->Int.toString
-      let actualSize = presentBoxNumbers->Set.Int.size->Int.toString
+      let expectedSize = presentBoxNumbers->Set.Int.maximum->Option.getExn->Int.toString
+      let actualSize = boxes->Array.length->Int.toString
       let expectMinMax = minMaxNum(expectedBoxNumbers)
       let presentMinMax = minMaxNum(presentBoxNumbers)
 
       `There is a potential data integrity issue with the list of boxes
 that are currently in the airtable for this destination. Our expectation for this
 destination is there will be ${expectedSize} boxes. There are, in fact, ${actualSize}
-boxes listed. 
+boxes listed. ${noDupeNumbers
+        ? ""
+        : "It looks like there is a duplicate box. "}HINT: you should look at the boxes for this destination and make sure
+the list looks right (no duplicate numbers, numbers counting strictly upward.)
 
-It seems like we SHOULD have boxes [${expectMinMax->first}] to [${expectMinMax->second}].
-It seems like we DO have boxes [${presentMinMax->first}] to [${presentMinMax->second}].
+It seems like we SHOULD have every box in the range [${expectMinMax->first}] to [${expectMinMax->second}].
+It seems like we DO have boxes in the range [${presentMinMax->first}] to [${presentMinMax->second}].
 
 We expected to see the following box numbers but they were missing: [${expectedButNotPresent->toNumberList}]
 We didn't expect to see the following box numbers: [${presentButNotExpected->toNumberList}]`
