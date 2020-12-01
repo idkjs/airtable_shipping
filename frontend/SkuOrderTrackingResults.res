@@ -53,10 +53,16 @@ let make = (
         {
           header: `🔎 🕵️ 🔬 🔍`,
           accessor: record =>
-            <SecondaryActionButton
-              onClick={() => dispatch(UpdateSearchString(record.trackingNumber.read()))}>
-              {`Focus`->s}
-            </SecondaryActionButton>,
+            if trackingRecords->Array.length > 1 {
+              <SecondaryActionButton
+                onClick={() => dispatch(UpdateSearchString(record.trackingNumber.read()))}>
+                {`Focus`->s}
+              </SecondaryActionButton>
+            } else {
+              <CancelButton onClick={() => dispatch(UpdateSearchString(""))}>
+                {`Clear Focus`->s}
+              </CancelButton>
+            },
           tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
         },
         {
