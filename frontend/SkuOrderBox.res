@@ -90,8 +90,11 @@ that are currently in the airtable for this destination. Our expectation for thi
 destination is there will be ${expectedSize} boxes. There are, in fact, ${actualSize}
 boxes listed. ${noDupeNumbers
         ? ""
-        : "It looks like there is a duplicate box. "}HINT: you should look at the boxes for this destination and make sure
-the list looks right (no duplicate numbers, numbers counting strictly upward.)
+        : "It looks like there is a duplicate box. "}
+        
+HINT: you should look at the boxes for this destination and make sure
+the list looks right (no duplicate numbers, numbers counting strictly upward, no gaps
+between the numbers.)
 
 It seems like we SHOULD have every box in the range [${expectMinMax->first}] to [${expectMinMax->second}].
 It seems like we DO have boxes in the range [${presentMinMax->first}] to [${presentMinMax->second}].
