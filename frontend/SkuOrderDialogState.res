@@ -240,10 +240,15 @@ have a quantity received entered at all, since we are still waiting for it.
       | (Some(qtyMarkedReceived), true, true, Ok(_))
       // non serial box that doesn't doesn't have a serial and a serialized name
       | (Some(qtyMarkedReceived), false, false, Ok(_)) => {
-          let boxesWithThisSkuOrder =
-            skuOrder.skuOrderBoxLines.rel.getRecords([])
-            ->Array.map(boxLine => boxLine.boxRecord.rel.getRecord())
-            ->Array.keepMap(identity)
+          let boxesWithThisSkuOrder = skuOrder.skuOrderBoxLines.rel.getRecords([])
+          ->Array.map(boxLine =>
+            boxLine.boxRecord.rel.getRecord()->Option.map(box => (box.boxName.read(), box))
+          )
+          ->Array.keepMap(identity)
+          // dedupe by way of this map
+          ->Map.String.fromArray
+          ->Map.String.toArray
+          ->Array.map(second)
 
           switch (unboxedQty, state.showPackedBoxes) {
           // shouldn't have less than 0 things to receive--it was overpacked
@@ -343,7 +348,9 @@ let parseRecordState: (schema, skuOrderRecord, state, action => _) => skuOrderSt
       <EditButton disabled={true} onClick={() => ()}> {s(`Nothing Packed`)} </EditButton>
     | PutInBox(sov)
     | SpectatePackedBoxes(sov, _, _) =>
-      <EditButton onClick={realOpen(sov, true)}> {s(`View/Edit Packed Box(es)`)} </EditButton>
+      <EditButton disabled={sov.skuOrder.quantityPacked.read() < 1} onClick={realOpen(sov, true)}>
+        {s(`View/Edit Packed Box(es)`)}
+      </EditButton>
     },
     dialog: switch recordStatus {
     | DataCorruption(msg) =>
