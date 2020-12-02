@@ -144,6 +144,11 @@ and skusTable: airtableTableDef = {
       camelCaseFieldName: `lifetimeOrderQty`,
       fieldValueType: FormulaRollupRO(Int),
     },
+    {
+      resolutionMethod: ByName(`SKU Photograph/Attachments`),
+      camelCaseFieldName: `skuAttachments`,
+      fieldValueType: ScalarRW(Attachments),
+    },
   ],
 }
 and boxDestinationsTable: airtableTableDef = {

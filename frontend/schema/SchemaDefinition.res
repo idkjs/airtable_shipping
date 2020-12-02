@@ -24,6 +24,7 @@ and airtableScalarValueDef =
   | Bool
   | IntAsBool
   | MomentOption
+  | Attachments
 and airtableFieldValueType =
   | ScalarRW(airtableScalarValueDef)
   | FormulaRollupRO(airtableScalarValueDef)
@@ -70,6 +71,7 @@ let allowedAirtableFieldTypes: airtableFieldValueType => array<string> = fvt => 
     | Bool => [`checkbox`]
     | IntAsBool => [`number`]
     | MomentOption => [`date`, `dateTime`]
+    | Attachments => [`multipleAttachments`]
     }
   }
 }
@@ -109,6 +111,10 @@ let getScalarTypeContext: airtableScalarValueDef => scalarTypeContext = atsv => 
   | MomentOption => {
       reasonReadReturnTypeName: `option<airtableMoment>`,
       scalarishFieldBuilderAccessorName: `momentOption`,
+    }
+  | Attachments => {
+      reasonReadReturnTypeName: `array<airtableAttachment>`,
+      scalarishFieldBuilderAccessorName: `attachments`,
     }
   }
 }
@@ -252,6 +258,7 @@ type rec scalarishField<'relUpdateParam> = {
   bool: scalarishRecordFieldBuilder<bool>,
   intBool: scalarishRecordFieldBuilder<bool>,
   momentOption: scalarishRecordFieldBuilder<option<airtableMoment>>,
+  attachments: scalarishRecordFieldBuilder<array<airtableAttachment>>,
   // special cases, used for record field updates -- NOT to be used for GETTING stuff
   relSingle: scalarishRecordFieldBuilder<'relUpdateParam>,
   relMulti: scalarishRecordFieldBuilder<array<'relUpdateParam>>,
@@ -312,6 +319,8 @@ let buildScalarishField: (
   momentOption: scalarishBuilder(rawTable, rawField, getMomentOption, mopt =>
     mopt->Option.mapWithDefault("", moment => moment->format())
   ),
+  // TODO writing will NOT work here
+  attachments: scalarishBuilder(rawTable, rawField, getMultipleAttachments, identity),
   relSingle: scalarishBuilder(
     rawTable,
     rawField,

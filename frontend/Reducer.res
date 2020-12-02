@@ -25,6 +25,10 @@ type rec action =
   | ClearBoxToUse
   | ShowPackedBoxes
   | ClearShowPackedBoxes
+  | FocusOnSkuAttachments(skuRecord)
+  | UnFocusOnSkuAttachments
+  | SkuAttachmentsNextPage
+
 and boxStuff = {name: string, qty: int, notes: string}
 
 type state = {
@@ -33,8 +37,8 @@ type state = {
   // tracking receive
   warehouseNotes: string,
   focusOnTrackingRecordId: recordId<skuOrderTrackingRecord>,
-  // sku order receive
   focusOnSkuOrderRecordId: recordId<skuOrderRecord>,
+  skuAttachments: (recordId<skuRecord>, int),
   skuQuantityReceived: option<int>,
   skuReceivingNotes: string,
   skuSerial: string,
@@ -50,6 +54,7 @@ let initialState: state = {
   warehouseNotes: "",
   focusOnTrackingRecordId: nullRecordId,
   focusOnSkuOrderRecordId: nullRecordId,
+  skuAttachments: (nullRecordId, -1),
   skuQuantityReceived: None,
   skuReceivingNotes: "",
   skuSerial: "",
@@ -123,6 +128,18 @@ let rec reducer = (state, action) => {
   | ClearShowPackedBoxes => {
       ...state,
       showPackedBoxes: false,
+    }
+  | FocusOnSkuAttachments(skuRecord) => {
+      ...state,
+      skuAttachments: (skuRecord.id, 0),
+    }
+  | UnFocusOnSkuAttachments => {
+      ...state,
+      skuAttachments: (nullRecordId, -1),
+    }
+  | SkuAttachmentsNextPage => {
+      ...state,
+      skuAttachments: (state.skuAttachments->first, state.skuAttachments->second + 1),
     }
   }
   Js.Console.log(rv)

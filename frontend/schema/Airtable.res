@@ -4,6 +4,7 @@ type airtableRawField = {
   @bs.as("type")
   _type: string,
 }
+@@warning("-30")
 
 type airtableObjectMap
 type airtableObjectMapComponent
@@ -18,6 +19,28 @@ type airtableRawSortParam = {
   field: airtableRawField,
   direction: string,
 }
+
+type rec airtableAttachment = {
+  id: string,
+  url: string,
+  filename: string,
+  contentType: option<string>,
+  sizeInBytes: option<int>,
+  thumbnail: airtableAttachmentThumbnails,
+}
+and airtableAttachmentThumbnail = {
+  thumbnailUrl: string,
+  widthPx: int,
+  heightPx: int,
+}
+and airtableAttachmentThumbnails = {
+  small: option<airtableAttachmentThumbnail>,
+  large: option<airtableAttachmentThumbnail>,
+  full: option<airtableAttachmentThumbnail>,
+}
+and newAirtableAttachment = {url: string, filename: string}
+and airtableAttachmentWriteFmt =
+  WithExistingAttachment(airtableAttachment) | WithNewAttachment(newAirtableAttachment)
 
 // their functions
 @bs.module("@airtable/blocks/ui")
@@ -96,6 +119,12 @@ external getIntAsBool: (airtableRawRecord, airtableRawField) => bool = "prepIntA
 @bs.module("./js_helpers")
 external getMomentOption: (airtableRawRecord, airtableRawField) => option<airtableMoment> =
   "prepMomentOption"
+@bs.module("./js_helpers")
+external getMultipleAttachments: (
+  airtableRawRecord,
+  airtableRawField,
+) => array<airtableAttachment> = "prepMultipleAttachments"
+
 @bs.module("./js_helpers")
 external getLinkedRecordQueryResult: (
   airtableRawRecord,

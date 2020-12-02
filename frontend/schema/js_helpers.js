@@ -41,14 +41,7 @@ function prepInt (record, field) {
 
 function prepBool (record, field) {
   let v = record.getCellValue(field)
-  if (typeof v !== 'boolean') {
-    console.error(
-      `requested field cannot be parsed as bool, returning false [fieldname:${field.name},recordname:${record.name},val: ${v}]`
-    )
-    return false
-  }
-
-  return v
+  return !!v
 }
 
 function prepIntAsBool (record, field) {
@@ -82,6 +75,42 @@ function prepMomentOption (record, field) {
   return vm
 }
 
+function prepMultipleAttachments (record, field) {
+  // per https://airtable.com/developers/apps/api/FieldType#MULTIPLE_ATTACHMENTS
+  let arr = record.getCellValue(field)
+  let toOpt = val => (val ? val : undefined)
+  let mapThumb = th => ({
+    thumbnailUrl: th.url,
+    widthPx: th.width,
+    heightPx: th.height
+  })
+
+  return !Array.isArray(arr)
+    ? []
+    : arr.map(att => {
+        // change some field names to match the ones we have
+        // and map all the nullish stuff to undefined so it's an option
+
+        let hasThumbs = !!att.thumbnails
+        let hasSmallThumbs = hasThumbs && !!att.thumbnails.small
+        let hasLargeThumbs = hasThumbs && !!att.thumbnails.large
+        let hasFullThumbs = hasThumbs && !!att.thumbnails.full
+
+        return {
+          id: att.id,
+          url: att.url,
+          filename: att.filename,
+          contentType: toOpt(att.type),
+          sizeInBytes: toOpt(att.size),
+          thumbnail: {
+            small: hasSmallThumbs ? mapThumb(att.thumbnails.small) : undefined,
+            large: hasLargeThumbs ? mapThumb(att.thumbnails.large) : undefined,
+            full: hasFullThumbs ? mapThumb(att.thumbnails.full) : undefined
+          }
+        }
+      })
+}
+
 function prepRelFieldQueryResult (record, field, fetchfields, sortsArr) {
   return record.selectLinkedRecordsFromCell(field, {
     fields: fetchfields,
@@ -113,6 +142,7 @@ exports.prepIntOption = prepIntOption
 exports.prepBool = prepBool
 exports.prepIntAsBool = prepIntAsBool
 exports.prepMomentOption = prepMomentOption
+exports.prepMultipleAttachments = prepMultipleAttachments
 exports.prepRelFieldQueryResult = prepRelFieldQueryResult
 exports.selectRecordsFromTableOrView = selectRecordsFromTableOrView
 exports.buildAirtableObjectMap = buildAirtableObjectMap

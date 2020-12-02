@@ -2,6 +2,7 @@ open Belt
 open AirtableUI
 open Schema
 open SkuOrderDialogState
+open SkuAttachmentsDialog
 open Util
 
 @react.component
@@ -13,6 +14,7 @@ let make = (
 ) => {
   // so this is a hook, remember
   let focusSkuOrderOpt = schema.skuOrder.rel.useRecordById(state.focusOnSkuOrderRecordId)
+  let focusSkuOpt = schema.sku.rel.useRecordById(state.skuAttachments->first)
 
   <div>
     <Heading> {React.string(`SKU Orders`)} </Heading>
@@ -27,7 +29,31 @@ let make = (
         },
         {
           header: `SKU`,
-          accessor: so => so.skuOrderSku.scalar.render(),
+          accessor: so => {
+            <div>
+              {so.skuOrderSku.scalar.render()}
+              <div>
+                {so.skuOrderSku.rel.getRecord()
+                ->Option.flatMap(sku =>
+                  sku->skuHasImages
+                    ? Some(
+                        <Button
+                          onClick={() => dispatch(Reducer.FocusOnSkuAttachments(sku))}
+                          icon="attachment"
+                          size="default"
+                          variant="default">
+                          {`View Photo(s)`->s}
+                        </Button>,
+                      )
+                    : None
+                )
+                ->Option.getWithDefault(React.null)}
+              </div>
+              {focusSkuOpt->Option.mapWithDefault(React.null, sku =>
+                <SkuAttachmentsDialog dispatch state sku />
+              )}
+            </div>
+          },
           tdStyle: ReactDOM.Style.make(),
         },
         {
