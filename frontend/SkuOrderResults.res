@@ -65,7 +65,7 @@ let make = (
           tdStyle: ReactDOM.Style.make(~textAlign="center", ()),
         }, */
         {
-          header: `Notes`,
+          header: `SKU Notes for this Order`,
           accessor: so => so.receivingNotes.render(),
           tdStyle: ReactDOM.Style.make(),
         },

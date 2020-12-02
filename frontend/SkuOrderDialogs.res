@@ -39,8 +39,8 @@ type skuOrderDialogVars = {
   boxNotes: potentialBox => string,
   boxNotesOnChange: (potentialBox, ReactEvent.Form.t) => unit,
   boxesToDisplay: array<potentialBox>,
-  filterToSingleBox: option<potentialBox>,
-  isFilteredToSingleBox: bool,
+  filterToSinglePotentialBox: option<potentialBox>,
+  isFilteredToSinglePotentialBox: bool,
   noBoxSearchResults: bool,
   createNewBox: (potentialBox, unit) => unit,
   packBox: (potentialBox, boxRecord, int, string, unit) => unit,
@@ -216,8 +216,8 @@ module BoxSku = {
       boxNotes,
       boxNotesOnChange,
       boxesToDisplay,
-      filterToSingleBox,
-      isFilteredToSingleBox,
+      filterToSinglePotentialBox,
+      isFilteredToSinglePotentialBox,
       noBoxSearchResults,
       dest,
       receivingNotes,
@@ -229,6 +229,7 @@ module BoxSku = {
       persistUnreceive,
       hasAnythingBeenPacked,
       dialogClose,
+      packingBox,
     } = dialogVars
 
     let clearSearchBtn =
@@ -287,7 +288,7 @@ module BoxSku = {
               {
                 header: `Action`,
                 accessor: box => {
-                  isFilteredToSingleBox
+                  isFilteredToSinglePotentialBox
                     ? clearSearchBtn
                     : <PrimarySaveButton
                         onClick={() => UpdateBoxSearchString(dest, box.name)->dispatch}>
@@ -298,10 +299,42 @@ module BoxSku = {
               },
             ]
           />}
-      {switch filterToSingleBox {
+      {switch filterToSinglePotentialBox {
       | None => React.null
       | Some(box) =>
         <div>
+          {// view existing box contents, if any are present
+          packingBox->Option.mapWithDefault(React.null, existingBox =>
+            switch existingBox.boxLines.rel.getRecords([]) {
+            | [] => React.null
+            | boxLines =>
+              <div>
+                <Subheading> {`Existing Box Contents`->s} </Subheading>
+                <Table
+                  rowId={bl => `${bl.name.read()}_viewextantbo`}
+                  elements=boxLines
+                  columnDefs=[
+                    {
+                      header: `Box`,
+                      accessor: bl => bl.boxRecord.scalar.render(),
+                      tdStyle: ReactDOM.Style.make(),
+                    },
+                    {
+                      header: `Sku`,
+                      accessor: bl => bl.boxLineSku.scalar.render(),
+                      tdStyle: ReactDOM.Style.make(),
+                    },
+                    {
+                      header: `Qty`,
+                      accessor: bl => bl.qty.render(),
+                      tdStyle: ReactDOM.Style.make(),
+                    },
+                  ]
+                />
+              </div>
+            }
+          )}
+          // actually do the receiving
           <Subheading> {(`Receive ${sku.skuName.read()} into ${box.name}`)->s} </Subheading>
           <Table
             rowId={box => `${box.name}_packbo`}
@@ -329,7 +362,7 @@ module BoxSku = {
                 tdStyle: ReactDOM.Style.make(~fontSize="1.7em", ~textAlign="center", ()),
               },
               {
-                header: `Boxing Notes`,
+                header: `Box-Level Notes`,
                 accessor: pb =>
                   <textarea
                     style={ReactDOM.Style.make(~width="100%", ())}
@@ -438,6 +471,11 @@ module SpectatePackedBoxes = {
                 {
                   header: `Qty`,
                   accessor: bl => bl.qty.render(),
+                  tdStyle: ReactDOM.Style.make(),
+                },
+                {
+                  header: `Box Specific Notes`,
+                  accessor: _ => box.boxNotes.render(),
                   tdStyle: ReactDOM.Style.make(),
                 },
                 {

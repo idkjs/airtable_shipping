@@ -57,7 +57,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           })
         )
 
-      let (singleFilteredToBox, selectedBoxRecordForPacking) =
+      let (singleFilteredToPotentialBox, selectedBoxRecordForPacking) =
         boxesToDisplay->Array.get(0)->Option.map(btd =>
           // can't be selected if there is more than one thing in the array
           boxesToDisplay->Array.length == 1 ? (Some(btd), btd.underlyingRecord) : (None, None)
@@ -141,8 +141,8 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
         boxNotesOnChange: pb => dispatch->onChangeHandler(v => UpdateBoxNotes(skuOrder, pb, v)),
         //
         boxesToDisplay: boxesToDisplay,
-        filterToSingleBox: singleFilteredToBox,
-        isFilteredToSingleBox: singleFilteredToBox->Option.isSome,
+        filterToSinglePotentialBox: singleFilteredToPotentialBox,
+        isFilteredToSinglePotentialBox: singleFilteredToPotentialBox->Option.isSome,
         noBoxSearchResults: boxesToDisplay->Array.length == 0,
         createNewBox: (pb, _) =>
           dispatch->multi([
@@ -171,17 +171,20 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
               Some(UseBox(skuOrder, potentialBox)),
               Some(
                 BlindlyPromise(
-                  () =>
-                    existingLineWithThisSkuInTargetBox->Option.mapWithDefault(
+                  // you need to create the closure INSIDE the option
+                  // otherwise it WILL be evaluated even if the other side of the
+                  // option gets used
+                  existingLineWithThisSkuInTargetBox->Option.mapWithDefault(
+                    () =>
                       schema.boxLine.crud.create([
                         schema.boxLine.boxRecordField.buildObjectMapComponent(box),
                         schema.boxLine.boxLineSkuField.buildObjectMapComponent(sku),
                         schema.boxLine.boxLineSkuOrderField.buildObjectMapComponent(skuOrder),
                         schema.boxLine.qtyField.buildObjectMapComponent(qty),
                       ])->asUnitPromise,
-                      existingBoxLine =>
-                        existingBoxLine.qty.updateAsync(existingBoxLine.qty.read() + qty),
-                    ),
+                    (existingBoxLine, ()) =>
+                      existingBoxLine.qty.updateAsync(existingBoxLine.qty.read() + qty),
+                  ),
                 ),
               ),
               Some(BlindlyPromise(() => box.boxNotes.updateAsync(notes))),
