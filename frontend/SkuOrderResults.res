@@ -59,8 +59,9 @@ let make = (
               ->Option.flatMap(bd =>
                 bd.isSerialBox.read()
                   ? Some(
-                      `This destination is intended ONLY for items with serial numbers and their accompanying peripheral or similar products.
-                      If it seems like this an improper destination for this product, let us know!`,
+                      `This destination is intended ONLY for items with serial
+numbers and their accompanying peripheral or similar products. If it seems like
+this is an improper destination for this product, let us know before boxing!`,
                     )
                   : None
               )

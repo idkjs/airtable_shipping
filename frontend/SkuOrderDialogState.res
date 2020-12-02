@@ -307,7 +307,7 @@ do about it.`,
       (len: ${skuopt
         ->Option.mapWithDefault(0, sku => sku.skuName.read()->length)
         ->Int.toString})
-  - SKU serial must not end in X### where '#' is anything and 'X' is a capital X
+  - SKU serial must end in X### where '#' is anything and 'X' is a capital X
   - Box destination must be set (status: ${destop->stat})
   - Expected Qty must be > 0 (qty: ${qty->Int.toString})`,
       )
