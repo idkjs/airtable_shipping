@@ -9,9 +9,9 @@
     "bs-platform": "8.3.3"
   },
   "devDependencies": {
-    "eslint": "^6.8.0",
+    "eslint": "^7.1.0",
     "eslint-plugin-react": "^7.18.3",
-    "eslint-plugin-react-hooks": "^2.5.0"
+    "eslint-plugin-react-hooks": "^4.1.2"
   },
   "scripts": {
     "lint": "eslint frontend",
