@@ -2,6 +2,7 @@ open Belt
 open AirtableUI
 open Schema
 open SkuOrderDialogState
+open Util
 
 @react.component
 let make = (
@@ -51,7 +52,34 @@ let make = (
         },
         {
           header: `Dest`,
-          accessor: so => so.skuOrderBoxDest.scalar.render(),
+          accessor: so => {
+            <div>
+              {so.skuOrderBoxDest.scalar.render()}
+              {so.skuOrderBoxDest.rel.getRecord()
+              ->Option.flatMap(bd =>
+                bd.isSerialBox.read()
+                  ? Some(
+                      `This destination is intended ONLY for items with serial numbers and their accompanying peripheral or similar products.
+                      If it seems like this an improper destination for this product, let us know!`,
+                    )
+                  : None
+              )
+              ->Option.mapWithDefault(React.null, msg =>
+                <div
+                  style={ReactDOM.Style.make(
+                    ~fontSize=".7em",
+                    ~fontStyle="italic",
+                    ~backgroundColor="LightGoldenRodYellow",
+                    // the double div solution is from here
+                    // https://stackoverflow.com/questions/9769587/set-div-to-have-its-siblings-width
+                    ~display="flex",
+                    (),
+                  )}>
+                  <div style={ReactDOM.Style.make(~flexGrow="1", ~width="0", ())}> {msg->s} </div>
+                </div>
+              )}
+            </div>
+          },
           tdStyle: ReactDOM.Style.make(),
         },
         /* {

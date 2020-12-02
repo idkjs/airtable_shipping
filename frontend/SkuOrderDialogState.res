@@ -48,7 +48,7 @@ let recordStatus: (schema, skuOrderRecord, state, action => unit) => stage = (
           rcv - skuOrder.quantityPacked.read()
         )
 
-      let potentialBoxes = schema->findPotentialBoxes(dest, unboxedQty)
+      let potentialBoxes = schema->findPotentialBoxes(dest, unboxedQty, sku.isSerialRequired.read())
       let boxesToDisplay =
         potentialBoxes->Result.mapWithDefault([], potentialBoxes =>
           potentialBoxes->Array.keep(box => {

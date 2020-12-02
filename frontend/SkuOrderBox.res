@@ -28,7 +28,8 @@ let findPotentialBoxes: (
   schema,
   boxDestinationRecord,
   int,
-) => result<array<potentialBox>, string> = (schema, bdr, unboxedQty) => {
+  bool,
+) => result<array<potentialBox>, string> = (schema, bdr, unboxedQty, isForSerialItem) => {
   let boxes = bdr.boxes.rel.getRecords([schema.box.boxNumberOnlyField.sortDesc])
 
   let presentBoxNumbers = Set.Int.fromArray(boxes->Array.map(box => box.boxNumberOnly.read()))
@@ -70,7 +71,12 @@ let findPotentialBoxes: (
     noDupeNumbers,
   ) {
   // seems good if there is nothing in these sets
-  | (true, true, true) => ""
+  | (true, true, true) =>
+    isForSerialItem && !bdr.isSerialBox.read()
+      ? `It appears that this item requires a serial number 
+and yet it is routed to a destination that is not for serial numbered items.`
+      : ``
+
   | _ => {
       let minMaxNum = set => (
         // we know the set has length
