@@ -1,12 +1,12 @@
 {
     "dependencies": {
-      "@airtable/blocks": "1.2.1",
+      "@airtable/blocks": "1.11.0",
       "locutus": "^2.0.16",
       "moment": "^2.29.1",
-      "react": "^17.0.2",
-      "react-dom": "^17.0.2",
-      "reason-react": "0.9.1",
-      "bs-platform": "9.0.2"
+      "react": "^16.8.0",
+      "react-dom": "^16.8.0",
+      "@rescript/react": "0.10.3",
+      "rescript": "9.1.4"
     },
     "devDependencies": {
       "eslint": "^8.11.0",
@@ -15,9 +15,9 @@
     },
     "scripts": {
       "lint": "eslint frontend",
-      "clean": "bsb -clean-world",
-      "build": "bsb -make-world",
-      "watch": "bsb -make-world -w",
+      "clean": "rescript clean",
+      "build": "rescript build -with-deps",
+      "watch": "rescript build -w",
       "schemagen2": "node ./frontend/schema/schemagennew.js > ./frontend/schema/SchemaNew.res; mv ./frontend/schema/Schema.res ./frontend/schema/Schema.res.prev; mv ./frontend/schema/SchemaNew.res ./frontend/schema/Schema.res;"
     }
   }
