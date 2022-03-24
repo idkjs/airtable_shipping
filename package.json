@@ -1,22 +1,24 @@
 {
-  "dependencies": {
-    "@airtable/blocks": "1.2.1",
-    "locutus": "^2.0.14",
-    "moment": "^2.29.1",
-    "react": "^17.0.1",
-    "react-dom": "^16.13.0",
-    "reason-react": "0.9.1",
-    "bs-platform": "8.3.3"
-  },
-  "devDependencies": {
-    "eslint": "^7.1.0",
-    "eslint-plugin-react": "^7.18.3",
-    "eslint-plugin-react-hooks": "^4.1.2"
-  },
-  "scripts": {
-    "lint": "eslint frontend",
-    "re:build": "bsb -make-world -clean-world",
-    "re:watch": "bsb -make-world -clean-world -w",
-    "schemagen2": "node ./frontend/schema/schemagennew.js > ./frontend/schema/SchemaNew.res; mv ./frontend/schema/Schema.res ./frontend/schema/Schema.res.prev; mv ./frontend/schema/SchemaNew.res ./frontend/schema/Schema.res;"
+    "dependencies": {
+      "@airtable/blocks": "1.2.1",
+      "locutus": "^2.0.16",
+      "moment": "^2.29.1",
+      "react": "^17.0.2",
+      "react-dom": "^17.0.2",
+      "reason-react": "0.9.1",
+      "bs-platform": "9.0.2"
+    },
+    "devDependencies": {
+      "eslint": "^8.11.0",
+      "eslint-plugin-react": "^7.29.4",
+      "eslint-plugin-react-hooks": "^4.3.0"
+    },
+    "scripts": {
+      "lint": "eslint frontend",
+      "clean": "bsb -clean-world",
+      "build": "bsb -make-world",
+      "watch": "bsb -make-world -w",
+      "schemagen2": "node ./frontend/schema/schemagennew.js > ./frontend/schema/SchemaNew.res; mv ./frontend/schema/Schema.res ./frontend/schema/Schema.res.prev; mv ./frontend/schema/SchemaNew.res ./frontend/schema/Schema.res;"
+    }
   }
-}
+  
